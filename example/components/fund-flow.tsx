@@ -61,6 +61,8 @@ type TransferEdgeData = {
   /** Dagre-reserved label anchor — guaranteed clear of nodes/other labels. */
   labelX: number;
   labelY: number;
+  /** Half-length of the straight run the label sits on. */
+  flatHalf: number;
   dimmed: boolean;
   active: boolean;
 };
@@ -75,31 +77,48 @@ function labelSize(text: string): { width: number; height: number } {
   return { width: Math.ceil(text.length * 6.7) + 14, height: 22 };
 }
 
+/** Cubic segment with horizontal tangents at both endpoints. */
+function hCubic(a: XY, b: XY): string {
+  const k = (b.x - a.x) / 2;
+  return ` C ${a.x + k},${a.y} ${b.x - k},${b.y} ${b.x},${b.y}`;
+}
+
 /**
- * Smooth (Catmull-Rom) path through the handle endpoints and dagre's routed
- * waypoints. Dagre threads edges through inter-rank channels around nodes
- * and label boxes — following its polyline is what keeps long edges from
- * cutting straight through intermediate nodes.
+ * Edge anatomy (design rule): curve out of the source, run **horizontally
+ * straight** through the label, curve into the target. Every joint uses
+ * horizontal tangents, so the straight run meets its neighbours without a
+ * kink. Dagre's channel waypoints are kept on either side of the straight
+ * run so long edges still route around nodes.
+ *
+ * The straight run is centered on dagre's reserved label anchor and sized to
+ * the label chip (clamped into the horizontal gap between the endpoints), so
+ * the label always sits on the flat section.
  */
-function smoothPath(pts: XY[]): string {
-  if (pts.length < 2) return "";
-  if (pts.length === 2) {
-    const [a, b] = pts;
-    const dx = (b.x - a.x) * 0.4;
-    return `M ${a.x},${a.y} C ${a.x + dx},${a.y} ${b.x - dx},${b.y} ${b.x},${b.y}`;
-  }
-  let d = `M ${pts[0].x},${pts[0].y}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[Math.max(0, i - 1)];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[Math.min(pts.length - 1, i + 2)];
-    const c1x = p1.x + (p2.x - p0.x) / 6;
-    const c1y = p1.y + (p2.y - p0.y) / 6;
-    const c2x = p2.x - (p3.x - p1.x) / 6;
-    const c2y = p2.y - (p3.y - p1.y) / 6;
-    d += ` C ${c1x},${c1y} ${c2x},${c2y} ${p2.x},${p2.y}`;
-  }
+function edgePathWithFlat(
+  src: XY,
+  tgt: XY,
+  waypoints: XY[],
+  labelX: number,
+  labelY: number,
+  flatHalf: number,
+): string {
+  const dir: 1 | -1 = tgt.x >= src.x ? 1 : -1;
+  const availSrc = Math.abs(labelX - src.x) - 20;
+  const availTgt = Math.abs(tgt.x - labelX) - 20;
+  const half = Math.max(10, Math.min(flatHalf, availSrc, availTgt));
+  const flatStart = { x: labelX - dir * half, y: labelY };
+  const flatEnd = { x: labelX + dir * half, y: labelY };
+
+  // Channel waypoints clear of the straight run, kept in travel order.
+  const before = waypoints.filter((p) => dir * (p.x - flatStart.x) < -6);
+  const after = waypoints.filter((p) => dir * (p.x - flatEnd.x) > 6);
+
+  let d = `M ${src.x},${src.y}`;
+  const pre = [src, ...before, flatStart];
+  for (let i = 0; i < pre.length - 1; i++) d += hCubic(pre[i], pre[i + 1]);
+  d += ` L ${flatEnd.x},${flatEnd.y}`;
+  const post = [flatEnd, ...after, tgt];
+  for (let i = 0; i < post.length - 1; i++) d += hCubic(post[i], post[i + 1]);
   return d;
 }
 
@@ -153,15 +172,16 @@ function TransferEdgeView({
   data,
   markerEnd,
 }: EdgeProps<TransferEdge>) {
-  // Endpoints come from the chosen handles; interior waypoints from dagre.
-  const pts: XY[] = [
-    { x: sourceX, y: sourceY },
-    ...(data?.waypoints ?? []),
-    { x: targetX, y: targetY },
-  ];
-  const path = smoothPath(pts);
   const labelX = data?.labelX ?? (sourceX + targetX) / 2;
   const labelY = data?.labelY ?? (sourceY + targetY) / 2;
+  const path = edgePathWithFlat(
+    { x: sourceX, y: sourceY },
+    { x: targetX, y: targetY },
+    data?.waypoints ?? [],
+    labelX,
+    labelY,
+    data?.flatHalf ?? 40,
+  );
   const opacity = data?.dimmed ? 0.18 : 1;
   return (
     <>
@@ -210,6 +230,10 @@ const edgeTypes = { transfer: TransferEdgeView };
 export function FundFlowGraph({ report }: { report: TraceReport }) {
   const flow = report.fundFlow;
   const [active, setActive] = useState<number | null>(null);
+  /** Pointer emphasis: a hovered edge, or a hovered node (→ adjacent edges). */
+  const [hovered, setHovered] = useState<
+    { type: "edge"; id: string } | { type: "node"; id: string } | null
+  >(null);
 
   const edgeCount = flow?.edges.length ?? 0;
   useEffect(() => {
@@ -280,9 +304,25 @@ export function FundFlowGraph({ report }: { report: TraceReport }) {
       };
     });
 
+    // Pointer emphasis beats keyboard selection while it lasts: a hovered
+    // edge spotlights itself; a hovered node spotlights every adjacent edge.
+    const emphasisOf = (e: (typeof ordered)[number], i: number) => {
+      if (hovered?.type === "edge") {
+        const lit = hovered.id === `t${e.id}`;
+        return { active: lit, dimmed: !lit };
+      }
+      if (hovered?.type === "node") {
+        const adjacent = e.from === hovered.id || e.to === hovered.id;
+        return { active: adjacent, dimmed: !adjacent };
+      }
+      if (active !== null) return { active: i === active, dimmed: i !== active };
+      return { active: false, dimmed: false };
+    };
+
     const edges: TransferEdge[] = ordered.map((e, i) => {
       const color = assetColor(e.asset);
       const d = displayOf(e);
+      const text = `${e.order + 1} ${d.amount} ${d.symbol}`;
       const routed = g.edge(e.from, e.to, `t${e.id}`) as
         | { points?: XY[]; x?: number; y?: number }
         | undefined;
@@ -295,6 +335,7 @@ export function FundFlowGraph({ report }: { report: TraceReport }) {
       // Connect the sides that face each other: a target left of its source
       // is reached source-left → target-right instead of wrapping around.
       const backward = g.node(e.to).x < g.node(e.from).x;
+      const emphasis = emphasisOf(e, i);
       return {
         id: `t${e.id}`,
         type: "transfer",
@@ -313,13 +354,14 @@ export function FundFlowGraph({ report }: { report: TraceReport }) {
           waypoints,
           labelX,
           labelY,
-          dimmed: active !== null && i !== active,
-          active: i === active,
+          flatHalf: labelSize(text).width / 2 + 8,
+          dimmed: emphasis.dimmed,
+          active: emphasis.active,
         },
       };
     });
     return { nodes, edges, ordered };
-  }, [flow, report, active]);
+  }, [flow, report, active, hovered]);
 
   if (!flow || flow.edges.length === 0) {
     return <div className="p-6 text-sm text-dim">No asset transfers in this transaction.</div>;
@@ -337,6 +379,10 @@ export function FundFlowGraph({ report }: { report: TraceReport }) {
         edgeTypes={edgeTypes}
         onEdgeClick={(_, edge) => setActive(edges.findIndex((e) => e.id === edge.id))}
         onPaneClick={() => setActive(null)}
+        onEdgeMouseEnter={(_, edge) => setHovered({ type: "edge", id: edge.id })}
+        onEdgeMouseLeave={() => setHovered(null)}
+        onNodeMouseEnter={(_, node) => setHovered({ type: "node", id: node.id })}
+        onNodeMouseLeave={() => setHovered(null)}
         fitView
         fitViewOptions={{ padding: 0.16, maxZoom: 1.15 }}
         minZoom={0.15}
