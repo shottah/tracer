@@ -9,7 +9,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.88"
 license = "MIT OR Apache-2.0"
@@ -19,10 +19,10 @@ categories = ["command-line-utilities", "development-tools::debugging"]
 
 [workspace.dependencies]
 # internal
-tracer-core = { path = "crates/tracer-core", version = "0.1.0" }
-tracer-trace = { path = "crates/tracer-trace", version = "0.1.0" }
-tracer-analysis = { path = "crates/tracer-analysis", version = "0.1.0" }
-tracer-client = { path = "crates/tracer-client", version = "0.1.0" }
+tracer-core = { path = "crates/tracer-core", version = "0.1.1" }
+tracer-trace = { path = "crates/tracer-trace", version = "0.1.1" }
+tracer-analysis = { path = "crates/tracer-analysis", version = "0.1.1" }
+tracer-client = { path = "crates/tracer-client", version = "0.1.1" }
 
 # ethereum
 alloy = { version = "2", features = [

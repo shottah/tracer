@@ -5,6 +5,9 @@ import { TxHeader } from "@/components/tx-header";
 import { applyLabelOverrides, labelOverrides } from "@/lib/labels";
 import { TX_HASH_RE, deepDefault, rpcUrl, runReport } from "@/lib/tracer";
 
+// Tracing big transactions takes a while; allow up to 5 minutes on Vercel.
+export const maxDuration = 300;
+
 export default async function SimulatePage({
   params,
   searchParams,

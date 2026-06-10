@@ -5,7 +5,7 @@
  */
 
 import { execFile } from "node:child_process";
-import { existsSync } from "node:fs";
+import { accessSync, chmodSync, constants, existsSync } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 import type { TraceReport } from "./types";
@@ -22,10 +22,14 @@ export interface ReportOptions {
   deep: boolean;
 }
 
-/** Locate the tracer binary: env override, then workspace builds, then PATH. */
+/**
+ * Locate the tracer binary: env override, then workspace builds, then the
+ * deploy-time download (`bin/tracer`, see scripts/fetch-tracer.mjs), then
+ * PATH. Restores the executable bit if a copy step dropped it.
+ */
 export function resolveTracerBin(): string {
   const fromEnv = process.env.TRACER_BIN;
-  if (fromEnv && existsSync(fromEnv)) return fromEnv;
+  if (fromEnv && existsSync(fromEnv)) return ensureExecutable(fromEnv);
   const roots = [path.resolve(process.cwd(), ".."), process.cwd()];
   for (const root of roots) {
     for (const profile of ["release", "debug"]) {
@@ -33,7 +37,22 @@ export function resolveTracerBin(): string {
       if (existsSync(candidate)) return candidate;
     }
   }
+  const fetched = path.join(process.cwd(), "bin", "tracer");
+  if (existsSync(fetched)) return ensureExecutable(fetched);
   return "tracer"; // hope it's on PATH
+}
+
+function ensureExecutable(bin: string): string {
+  try {
+    accessSync(bin, constants.X_OK);
+  } catch {
+    try {
+      chmodSync(bin, 0o755);
+    } catch {
+      // exec will surface a clearer error
+    }
+  }
+  return bin;
 }
 
 export function rpcUrl(): string | undefined {
@@ -43,6 +62,16 @@ export function rpcUrl(): string | undefined {
 /** Default for `--deep` (storage + exact interleaving); query param overrides. */
 export function deepDefault(): boolean {
   return process.env.TRACER_DEEP !== "0";
+}
+
+/**
+ * Backend selection (`--backend`). On serverless deployments set
+ * `TRACER_BACKEND=rpc`: there is no anvil to fall back to, and a debug-capable
+ * RPC is required anyway — this turns the fallback path into a clear error.
+ */
+function backendArg(): string | undefined {
+  const v = process.env.TRACER_BACKEND;
+  return v && ["auto", "rpc", "anvil-fork"].includes(v) ? v : undefined;
 }
 
 const cache = new Map<string, Promise<ReportResult>>();
@@ -70,6 +99,8 @@ async function runReportUncached(hash: string, opts: ReportOptions): Promise<Rep
   const bin = resolveTracerBin();
   const args = ["report", hash, "--rpc-url", url, "--compact"];
   if (opts.deep) args.push("--deep");
+  const backend = backendArg();
+  if (backend) args.push("--backend", backend);
 
   try {
     const { stdout } = await execFileAsync(bin, args, {

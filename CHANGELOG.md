@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-10
+
+### Added
+
+- `x86_64-unknown-linux-musl` release builds: fully static binaries that run
+  on any x86_64 Linux, including the Amazon Linux images behind serverless
+  platforms. The example web app's Vercel build downloads this asset.
+- Example web app: Vercel deployment support (build-time binary fetch,
+  function file tracing, `LABELS_JSON`/`TRACER_BACKEND` environment
+  variables) and the `labels.json` monkey-patch for unverified addresses.
+
 ## [0.1.0] - 2026-06-09
 
 Initial release.

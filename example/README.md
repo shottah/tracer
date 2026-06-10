@@ -91,6 +91,45 @@ derived (built-in labels, token symbols). For tokens without an on-chain
 Address keys are case-insensitive; edits take effect on the next page load
 (no restart needed). The file is gitignored — it's deployment-specific.
 
+## Deploying to Vercel
+
+The app deploys as a normal Next.js project with one twist: the serverless
+function needs the Rust `tracer` binary. The pieces that make that work:
+
+- **Build-time binary fetch** — [`vercel.json`](vercel.json) runs
+  [`scripts/fetch-tracer.mjs`](scripts/fetch-tracer.mjs) before `next build`,
+  downloading the fully static `x86_64-unknown-linux-musl` asset from this
+  repo's GitHub release into `bin/tracer` (static musl runs on Vercel's
+  Amazon Linux runtime, unlike glibc builds). Pin a release with
+  `TRACER_VERSION`.
+- **Function bundling** — `outputFileTracingIncludes` in
+  [`next.config.ts`](next.config.ts) ships `bin/tracer` inside the function
+  bundle; the bridge resolves it at `./bin/tracer` and restores the exec bit
+  if a copy step dropped it.
+- **Runtime limits** — the `/simulate/[hash]` page exports
+  `maxDuration = 300`; reports are cached in function memory (per warm
+  instance).
+
+Deploy from `example/`:
+
+```sh
+vercel link                                  # create/link the project
+vercel env add ETH_RPC_URL production        # a debug-capable RPC endpoint
+vercel env add TRACER_BACKEND production     # → rpc
+vercel env add LABELS_JSON production        # optional: inline labels.json
+vercel deploy --prod
+```
+
+Serverless constraints to know:
+
+- **`TRACER_BACKEND=rpc` is required in spirit**: there is no anvil on
+  Vercel, so the endpoint must support `debug_traceTransaction`
+  (`https://sepolia.base.org` does, as do Alchemy/QuickNode debug tiers).
+  Setting it makes unsupported endpoints fail with a clear message instead
+  of attempting the anvil fallback.
+- **Labels** — `labels.json` is gitignored, so deployed instances read
+  `LABELS_JSON` (same shape, inline) instead; env entries win over the file.
+
 ## Notes
 
 - This is an **example**, not a hardened product: reports are cached in

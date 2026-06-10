@@ -45,3 +45,6 @@ next-env.d.ts
 
 # local address labels (project-specific; commit the template instead)
 /labels.json
+
+# tracer binary downloaded by scripts/fetch-tracer.mjs (Vercel builds)
+/bin
