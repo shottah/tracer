@@ -53,6 +53,32 @@ export function amountText(amount: AmountJson): string {
   return amount.formatted ?? amount.dec;
 }
 
+/**
+ * Compact a (possibly 18-decimal) amount string for an on-canvas graph label.
+ * Full precision is preserved everywhere else (detail bar, balance table);
+ * this is display-only, so float rounding is acceptable.
+ *
+ *   "123.937992234639736623" → "123.938"
+ *   "0.000000000000001"       → "1.00e-15"
+ *   "1234567.89"              → "1,234,567.89"
+ */
+export function compactAmount(value: string): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) {
+    return value.length > 12 ? `${value.slice(0, 12)}…` : value;
+  }
+  if (n === 0) return "0";
+  const abs = Math.abs(n);
+  if (abs >= 1e12 || abs < 1e-6) return n.toExponential(2);
+  if (abs >= 1000) return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  const s = n.toPrecision(abs >= 1 ? 6 : 4);
+  return s.includes(".") && !s.includes("e") ? s.replace(/\.?0+$/, "") : s;
+}
+
+export function amountTextCompact(amount: AmountJson): string {
+  return compactAmount(amountText(amount));
+}
+
 export function signedAmountText(amount: SignedAmountJson): string {
   const v = amount.formatted ?? amount.dec;
   return amount.negative || v.startsWith("-") ? v : `+${v}`;

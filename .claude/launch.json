@@ -3,10 +3,11 @@
   "configurations": [
     {
       "name": "example",
+      "autoPort": true,
       "runtimeExecutable": "bash",
       "runtimeArgs": [
         "-c",
-        "cd example && ETH_RPC_URL=${ETH_RPC_URL:-http://127.0.0.1:8545} TRACER_DEEP=${TRACER_DEEP:-1} npm run dev"
+        "cd example && ETH_RPC_URL=${ETH_RPC_URL:-http://127.0.0.1:8545} TRACER_DEEP=${TRACER_DEEP:-1} npm run dev -- --port ${PORT:-3000}"
       ],
       "port": 3000
     }

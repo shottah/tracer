@@ -20,7 +20,6 @@ import {
   MarkerType,
   Position,
   ReactFlow,
-  getBezierPath,
   type Edge,
   type EdgeProps,
   type Node,
@@ -28,7 +27,13 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useEffect, useMemo, useState } from "react";
-import { amountText, assetColor, assetSymbol, txKindBadge } from "@/lib/format";
+import {
+  amountText,
+  amountTextCompact,
+  assetColor,
+  assetSymbol,
+  txKindBadge,
+} from "@/lib/format";
 import type { FlowNodeKind, TraceReport } from "@/lib/types";
 import { Chip } from "./ui";
 
@@ -46,9 +51,11 @@ type AddrNode = Node<AddrNodeData, "addr">;
 type TransferEdgeData = {
   order: number;
   amount: string;
+  full: string;
   symbol: string;
   color: string;
-  curvature: number;
+  /** Vertical bow (px) at the edge midpoint — separates parallel edges. */
+  offset: number;
   dimmed: boolean;
   active: boolean;
 };
@@ -56,6 +63,34 @@ type TransferEdge = Edge<TransferEdgeData, "transfer">;
 
 function midAddr(a: string): string {
   return a.length > 24 ? `${a.slice(0, 12)}…${a.slice(-8)}` : a;
+}
+
+/** Vertical gap (px) between adjacent parallel edges / their labels. */
+const PARALLEL_GAP = 30;
+
+/**
+ * Cubic bezier from source to target that bows vertically by `offset` at the
+ * midpoint. Unlike `getBezierPath`'s curvature (which does nothing when the
+ * endpoints share a Y, as they do in a clean LR layout), this guarantees
+ * parallel edges between the same node pair fan apart legibly.
+ *
+ * Returns `[svgPath, labelX, labelY]`; the label sits at the bow apex.
+ */
+function bowedPath(
+  sx: number,
+  sy: number,
+  tx: number,
+  ty: number,
+  offset: number,
+): [string, number, number] {
+  const dx = tx - sx;
+  // A cubic with both control points raised by k reaches 0.75·k at the
+  // midpoint, so k = offset / 0.75 puts the apex exactly at `offset`.
+  const k = offset / 0.75;
+  const c1x = sx + dx * 0.33;
+  const c2x = sx + dx * 0.67;
+  const d = `M ${sx},${sy} C ${c1x},${sy + k} ${c2x},${ty + k} ${tx},${ty}`;
+  return [d, (sx + tx) / 2, (sy + ty) / 2 + offset];
 }
 
 const KIND_GLYPH: Record<FlowNodeKind, { glyph: string; cls: string }> = {
@@ -73,11 +108,17 @@ function AddrNodeView({ data }: NodeProps<AddrNode>) {
       : data.role === "receiver"
         ? "border-accent/50"
         : "border-hairline-2";
+  // Invisible handles on both sides; each edge picks the pair of sides that
+  // face each other, so return flows don't wrap around the nodes.
+  const handleCls = "!pointer-events-none !opacity-0";
   return (
     <div
       className={`w-[232px] rounded-md border ${ring} bg-panel px-3 py-2 shadow-[0_2px_10px_rgba(0,0,0,0.35)]`}
     >
-      <Handle type="target" position={Position.Left} className="!pointer-events-none !opacity-0" />
+      <Handle id="t-left" type="target" position={Position.Left} className={handleCls} />
+      <Handle id="s-left" type="source" position={Position.Left} className={handleCls} />
+      <Handle id="t-right" type="target" position={Position.Right} className={handleCls} />
+      <Handle id="s-right" type="source" position={Position.Right} className={handleCls} />
       <div className="flex items-center gap-2">
         <span className={`text-[13px] ${g.cls}`}>{g.glyph}</span>
         <span className="truncate text-[12.5px] text-ink">
@@ -89,7 +130,6 @@ function AddrNodeView({ data }: NodeProps<AddrNode>) {
           {midAddr(data.address)}
         </div>
       )}
-      <Handle type="source" position={Position.Right} className="!pointer-events-none !opacity-0" />
     </div>
   );
 }
@@ -100,21 +140,17 @@ function TransferEdgeView({
   sourceY,
   targetX,
   targetY,
-  sourcePosition,
-  targetPosition,
   data,
   markerEnd,
 }: EdgeProps<TransferEdge>) {
-  const [path, labelX, labelY] = getBezierPath({
+  const [path, labelX, labelY] = bowedPath(
     sourceX,
     sourceY,
-    sourcePosition,
     targetX,
     targetY,
-    targetPosition,
-    curvature: data?.curvature ?? 0.25,
-  });
-  const opacity = data?.dimmed ? 0.22 : 1;
+    data?.offset ?? 0,
+  );
+  const opacity = data?.dimmed ? 0.18 : 1;
   return (
     <>
       <BaseEdge
@@ -131,16 +167,25 @@ function TransferEdgeView({
       <EdgeLabelRenderer>
         <div
           style={{
-            transform: `translate(-50%, -100%) translate(${labelX}px, ${labelY - 2}px)`,
+            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
             opacity,
           }}
-          className={`pointer-events-none absolute font-mono text-[11px] leading-4 whitespace-nowrap ${
-            data?.active ? "z-10" : ""
-          }`}
+          className={`pointer-events-none absolute ${data?.active ? "z-20" : ""}`}
+          title={`${(data?.order ?? 0) + 1}: ${data?.full} ${data?.symbol}`}
         >
-          <span className="text-faint">{(data?.order ?? 0) + 1} </span>
-          <span className="text-ink">{data?.amount}</span>
-          <span style={{ color: data?.color }}> {data?.symbol}</span>
+          <span
+            className="rounded-[3px] border px-1 py-px font-mono text-[11px] leading-4 whitespace-nowrap"
+            style={{
+              background: "color-mix(in srgb, var(--bg) 88%, transparent)",
+              borderColor: data?.active
+                ? data.color
+                : "color-mix(in srgb, var(--hairline) 90%, transparent)",
+            }}
+          >
+            <span className="text-faint">{(data?.order ?? 0) + 1} </span>
+            <span className="text-ink">{data?.amount}</span>
+            <span style={{ color: data?.color }}> {data?.symbol}</span>
+          </span>
         </div>
       </EdgeLabelRenderer>
     </>
@@ -199,25 +244,42 @@ export function FundFlowGraph({ report }: { report: TraceReport }) {
     });
 
     const ordered = [...flow.edges].sort((a, b) => a.order - b.order);
-    const parallel = new Map<string, number>();
+
+    // Group edges that share a node pair (in either direction) so they can be
+    // fanned symmetrically around the straight line between the two nodes.
+    const pairKey = (e: { from: string; to: string }) =>
+      [e.from, e.to].sort().join("|");
+    const groupTotal = new Map<string, number>();
+    for (const e of ordered) groupTotal.set(pairKey(e), (groupTotal.get(pairKey(e)) ?? 0) + 1);
+    const groupSeen = new Map<string, number>();
+
     const edges: TransferEdge[] = ordered.map((e, i) => {
-      const key = `${e.from}|${e.to}`;
-      const idx = parallel.get(key) ?? 0;
-      parallel.set(key, idx + 1);
+      const key = pairKey(e);
+      const gi = groupSeen.get(key) ?? 0;
+      groupSeen.set(key, gi + 1);
+      const gn = groupTotal.get(key)!;
+      // Symmetric fan: e.g. 3 edges → offsets −gap, 0, +gap.
+      const offset = (gi - (gn - 1) / 2) * PARALLEL_GAP;
       const color = assetColor(e.asset);
+      // Connect the sides that face each other: a target left of its source
+      // is reached source-left → target-right instead of wrapping around.
+      const backward = g.node(e.to).x < g.node(e.from).x;
       return {
         id: `t${e.id}`,
         type: "transfer",
         source: e.from,
         target: e.to,
-        interactionWidth: 24,
+        sourceHandle: backward ? "s-left" : "s-right",
+        targetHandle: backward ? "t-right" : "t-left",
+        interactionWidth: 20,
         markerEnd: { type: MarkerType.ArrowClosed, color, width: 14, height: 14 },
         data: {
           order: e.order,
-          amount: amountText(e.amount),
+          amount: amountTextCompact(e.amount),
+          full: amountText(e.amount),
           symbol: assetSymbol(report, e.asset),
           color,
-          curvature: 0.16 + idx * 0.15,
+          offset,
           dimmed: active !== null && i !== active,
           active: i === active,
         },
