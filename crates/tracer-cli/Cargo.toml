@@ -1,0 +1,30 @@
+[package]
+name = "tracer-cli"
+description = "Headless EVM transaction inspector: call traces, balance changes, and fund flows (open-source alternative to Phalcon Explorer / Tenderly)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[[bin]]
+name = "tracer"
+path = "src/main.rs"
+
+[dependencies]
+tracer-core = { workspace = true }
+tracer-client = { workspace = true }
+alloy-primitives = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[dev-dependencies]
+alloy = { workspace = true }
+
+[lints]
+workspace = true

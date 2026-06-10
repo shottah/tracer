@@ -1,0 +1,59 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/tracer-core",
+    "crates/tracer-trace",
+    "crates/tracer-analysis",
+    "crates/tracer-client",
+    "crates/tracer-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+license = "MIT OR Apache-2.0"
+keywords = ["ethereum", "evm", "tracing", "anvil", "foundry"]
+categories = ["command-line-utilities", "development-tools::debugging"]
+
+[workspace.dependencies]
+# internal
+tracer-core = { path = "crates/tracer-core", version = "0.1.0" }
+tracer-trace = { path = "crates/tracer-trace", version = "0.1.0" }
+tracer-analysis = { path = "crates/tracer-analysis", version = "0.1.0" }
+tracer-client = { path = "crates/tracer-client", version = "0.1.0" }
+
+# ethereum
+alloy = { version = "2", features = [
+    "full",
+    "node-bindings",
+    "provider-debug-api",
+    "provider-anvil-api",
+    "rpc-types-trace",
+] }
+alloy-primitives = { version = "1", features = ["serde"] }
+alloy-sol-types = "1"
+alloy-rpc-types-trace = "2"
+
+# async
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+
+# serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# errors & logging
+thiserror = "2"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# cli
+clap = { version = "4", features = ["derive", "env"] }
+
+[profile.release]
+lto = "thin"
+strip = "symbols"
+
+[workspace.lints.clippy]
+uninlined_format_args = "allow"

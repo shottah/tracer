@@ -1,0 +1,19 @@
+[package]
+name = "tracer-analysis"
+description = "Transfer extraction, balance changes, and fund-flow analysis for the tracer EVM transaction inspector"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+tracer-core = { workspace = true }
+alloy-primitives = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+
+[lints]
+workspace = true
