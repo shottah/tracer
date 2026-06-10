@@ -158,6 +158,23 @@ transfers and balance deltas to direct RPC tracing.
 JSON shapes are documented in [docs/formats.md](docs/formats.md); design
 notes and trade-offs in [docs/design.md](docs/design.md).
 
+## Example web app
+
+[`example/`](example/) is a Next.js inspector that consumes this JSON and
+renders the three views the way Phalcon Explorer and Tenderly do — a
+line-numbered **invocation flow**, a **balance-changes** table, and a
+**fund-flow** graph (React Flow on a dotted canvas, arrow-key navigable —
+consuming the `fundFlow` JSON directly, not a Mermaid diagram). It shells out
+to the `tracer` binary server-side and exposes a `/simulate/[hash]` route.
+
+```sh
+cargo build --release -p tracer-cli      # build the engine
+cd example && cp .env.example .env.local # set ETH_RPC_URL
+npm install && npm run dev               # → http://localhost:3000
+```
+
+See [example/README.md](example/README.md) for details.
+
 ## Comparison
 
 | Feature | tracer | Phalcon | Tenderly | OpenTracer |
@@ -168,6 +185,7 @@ notes and trade-offs in [docs/design.md](docs/design.md).
 | Storage read/write tracking | ✅ (`--deep`) | ✅ | ✅ | ✅ |
 | Works without debug/archive RPC | ✅ (anvil fork) | n/a (hosted) | n/a (hosted) | ❌ |
 | Headless / scriptable | ✅ JSON | ❌ | API (paid) | ✅ |
+| Reference web UI | ✅ ([`example/`](example/)) | hosted | hosted | ❌ |
 | Self-hosted / open source | ✅ MIT/Apache | ❌ | ❌ | ✅ |
 | Language | Rust | — | — | Python |
 

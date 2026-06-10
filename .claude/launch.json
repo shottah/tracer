@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "example",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd example && ETH_RPC_URL=${ETH_RPC_URL:-http://127.0.0.1:8545} TRACER_DEEP=${TRACER_DEEP:-1} npm run dev"
+      ],
+      "port": 3000
+    }
+  ]
+}

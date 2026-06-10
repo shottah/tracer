@@ -29,6 +29,12 @@ spawn their own nodes on random ports — safe to run in parallel.
 - `tracer-client` — IO: rpc + anvil-fork backends, enrichment, orchestrator
   (`tracer.rs::report` is the end-to-end flow).
 - `tracer-cli` — bin `tracer`; renderers in `src/render/`.
+- `example/` — Next.js (App Router) web inspector; **not** a workspace
+  member. Shells out to the `tracer` binary server-side (`lib/tracer.ts`),
+  renders the three Phalcon-style views from the JSON. `lib/types.ts` mirrors
+  `docs/formats.md` — keep them in sync when the schema changes. Fund-flow
+  graph is React Flow + dagre (NOT mermaid). Its own CLAUDE.md/AGENTS.md warns
+  this is Next 16 with breaking changes — read `node_modules/next/dist/docs/`.
 
 ## Gotchas
 

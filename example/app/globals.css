@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+/* Forensic-instrument palette: graphite panels, hairline borders,
+   semantic accents (green native/success, blue tokens, red reverts). */
+:root {
+  --bg: #0a0d10;
+  --panel: #0f141a;
+  --panel-2: #151b23;
+  --hairline: #1d242e;
+  --hairline-2: #2a3340;
+  --ink: #d7dee6;
+  --dim: #7b8794;
+  --faint: #515d6b;
+  --pos: #34d399;
+  --neg: #f47171;
+  --accent: #5b9cf6;
+  --warn: #f0b35c;
+  --violet: #a78bfa;
+  --cyan: #22d3ee;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-hairline: var(--hairline);
+  --color-hairline-2: var(--hairline-2);
+  --color-ink: var(--ink);
+  --color-dim: var(--dim);
+  --color-faint: var(--faint);
+  --color-pos: var(--pos);
+  --color-neg: var(--neg);
+  --color-accent: var(--accent);
+  --color-warn: var(--warn);
+  --color-violet: var(--violet);
+  --color-cyan: var(--cyan);
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--hairline-2) transparent;
+}
+
+/* The dotted canvas used behind hero + graph surrounds. */
+.dotgrid {
+  background-image: radial-gradient(circle, #1d2630 1.1px, transparent 1.1px);
+  background-size: 22px 22px;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rise {
+  animation: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+/* React Flow dark-theme alignment */
+.react-flow {
+  --xy-background-color: var(--bg);
+  --xy-edge-stroke-default: var(--hairline-2);
+  --xy-attribution-background-color-default: transparent;
+}
+
+.react-flow__controls {
+  box-shadow: none;
+}
+
+.react-flow__controls-button {
+  background: var(--panel);
+  border-bottom: 1px solid var(--hairline);
+  fill: var(--dim);
+}
+
+.react-flow__controls-button:hover {
+  background: var(--panel-2);
+}
