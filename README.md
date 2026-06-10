@@ -175,20 +175,6 @@ npm install && npm run dev               # → http://localhost:3000
 
 See [example/README.md](example/README.md) for details.
 
-## Comparison
-
-| Feature | tracer | Phalcon | Tenderly | OpenTracer |
-| --- | --- | --- | --- | --- |
-| Call trace w/ decoding | ✅ | ✅ | ✅ | ✅ |
-| Balance changes | ✅ | ✅ | ✅ | — |
-| Fund flow graph | ✅ | ✅ | ✅ | — |
-| Storage read/write tracking | ✅ (`--deep`) | ✅ | ✅ | ✅ |
-| Works without debug/archive RPC | ✅ (anvil fork) | n/a (hosted) | n/a (hosted) | ❌ |
-| Headless / scriptable | ✅ JSON | ❌ | API (paid) | ✅ |
-| Reference web UI | ✅ ([`example/`](example/)) | hosted | hosted | ❌ |
-| Self-hosted / open source | ✅ MIT/Apache | ❌ | ❌ | ✅ |
-| Language | Rust | — | — | Python |
-
 ## Development
 
 ```sh
@@ -201,10 +187,23 @@ Releases are tag-driven: see [RELEASING.md](RELEASING.md).
 
 ## Acknowledgements
 
-The struct-log interpretation approach follows
-[OpenTracer](https://github.com/jeffchen006/OpenTracer) (Zhang et al.) —
-the insight that full transaction semantics can be reconstructed from
-standard `debug_traceTransaction` output, no proprietary tracers required.
+This project stands on the shoulders of
+[OpenTracer](https://github.com/jeffchen006/OpenTracer) (Zhang et al.),
+which served as the base for tracer: we rewrote its approach from the
+ground up in Rust. OpenTracer's core insight — that full transaction
+semantics (call trees, storage accesses, events) can be reconstructed from
+standard `debug_traceTransaction` struct logs, no proprietary tracers
+required — is the foundation of this codebase's `--deep` interpreter and
+its fetch/parse/analyze architecture.
+
+The analysis functionality and its presentation — balance changes, fund
+flow, and the invocation view — are directly inspired by
+[Phalcon Explorer](https://explorer.phalcon.xyz) (BlockSec) and
+[Tenderly](https://tenderly.co), whose transaction inspectors set the bar
+for how these views should look and behave. tracer exists to make that
+caliber of inspection available open-source and self-hosted; full credit
+to both teams for showing what great transaction tooling looks like.
+
 Built on [alloy](https://github.com/alloy-rs/alloy) and
 [Foundry](https://github.com/foundry-rs/foundry).
 
