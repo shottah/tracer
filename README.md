@@ -188,7 +188,7 @@ Releases are tag-driven: see [RELEASING.md](RELEASING.md).
 ## Acknowledgements
 
 This project stands on the shoulders of
-[OpenTracer](https://github.com/jeffchen006/OpenTracer) (Zhang et al.),
+[OpenTracer](https://github.com/jeffchen006/OpenTracer) (Chen et al.),
 which served as the base for tracer: we rewrote its approach from the
 ground up in Rust. OpenTracer's core insight — that full transaction
 semantics (call trees, storage accesses, events) can be reconstructed from
