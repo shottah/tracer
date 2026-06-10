@@ -42,3 +42,6 @@ next-env.d.ts
 
 # keep the template
 !.env.example
+
+# local address labels (project-specific; commit the template instead)
+/labels.json

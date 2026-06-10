@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { InspectorTabs } from "@/components/inspector-tabs";
 import { TxHeader } from "@/components/tx-header";
+import { applyLabelOverrides, labelOverrides } from "@/lib/labels";
 import { TX_HASH_RE, deepDefault, rpcUrl, runReport } from "@/lib/tracer";
 
 export default async function SimulatePage({
@@ -56,10 +57,13 @@ export default async function SimulatePage({
     );
   }
 
+  // Local labels.json overrides for unverified contracts/wallets.
+  const report = applyLabelOverrides(result.report, labelOverrides());
+
   return (
     <Shell hash={hash}>
-      <TxHeader report={result.report} />
-      <InspectorTabs report={result.report} />
+      <TxHeader report={report} />
+      <InspectorTabs report={report} />
     </Shell>
   );
 }

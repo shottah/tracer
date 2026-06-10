@@ -69,6 +69,27 @@ npm run dev
 | `ETH_RPC_URL` | yes | JSON-RPC endpoint tracer reads from |
 | `TRACER_BIN` | no | explicit path to the `tracer` binary |
 | `TRACER_DEEP` | no | `1` (default) runs `--deep`; `0` disables. Per-request override: `?deep=1` / `?deep=0` |
+| `LABELS_FILE` | no | path to the address-labels file (default `./labels.json`) |
+
+## Labeling unverified contracts (`labels.json`)
+
+Contracts that aren't ABI-verified on-chain render as bare addresses. Drop a
+`labels.json` next to the app (copy [`labels.example.json`](labels.example.json))
+mapping addresses to names:
+
+```json
+{
+  "0x1a9ad59713b85750ef2f9cd8433f898a65c654a4": "VFE",
+  "0x04a929e264165a0036ca8e317aeba471d5637d55": "USD Curve Pool"
+}
+```
+
+Labels apply across every view — fund-flow nodes, the invocation tree,
+balance-change rows, and the header — and **win over** anything tracer
+derived (built-in labels, token symbols). For tokens without an on-chain
+`symbol()`, the label also stands in for the ticker on fund-flow edges.
+Address keys are case-insensitive; edits take effect on the next page load
+(no restart needed). The file is gitignored — it's deployment-specific.
 
 ## Notes
 

@@ -17,13 +17,17 @@ export function shortHex(hex: string, max = 18): string {
   return `${hex.slice(0, max - 7)}…${hex.slice(-6)}`;
 }
 
-/** Case-insensitive label lookup (labels are keyed by checksummed address). */
+/**
+ * Case-insensitive label lookup. Reports patched by labels.json store
+ * lowercase keys (fast path); raw reports key by checksummed address, so a
+ * scan remains as the fallback.
+ */
 export function labelFor(report: TraceReport, addr: string): string | undefined {
   const labels = report.addressLabels;
   if (!labels) return undefined;
-  const direct = labels[addr];
-  if (direct) return direct;
   const lower = addr.toLowerCase();
+  const direct = labels[addr] ?? labels[lower];
+  if (direct) return direct;
   for (const [k, v] of Object.entries(labels)) {
     if (k.toLowerCase() === lower) return v;
   }
@@ -36,12 +40,15 @@ export function displayName(report: TraceReport, addr: string): string {
 
 export function assetSymbol(report: TraceReport, asset: AssetJson): string {
   if (asset.type === "native") return report.nativeSymbol;
+  // On-chain symbol first (it's the ticker); a labels.json name beats the
+  // bare address for tokens that expose no metadata.
   const token = report.tokens?.[asset.token];
   const base =
     token?.symbol ??
     Object.entries(report.tokens ?? {}).find(
       ([k]) => k.toLowerCase() === asset.token.toLowerCase(),
     )?.[1]?.symbol ??
+    labelFor(report, asset.token) ??
     shortAddr(asset.token);
   if (asset.type === "erc721" || asset.type === "erc1155") {
     return `${base} #${asset.tokenId}`;
