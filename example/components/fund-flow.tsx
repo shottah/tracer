@@ -48,14 +48,19 @@ type AddrNodeData = {
 };
 type AddrNode = Node<AddrNodeData, "addr">;
 
+type XY = { x: number; y: number };
+
 type TransferEdgeData = {
   order: number;
   amount: string;
   full: string;
   symbol: string;
   color: string;
-  /** Vertical bow (px) at the edge midpoint — separates parallel edges. */
-  offset: number;
+  /** Dagre-routed waypoints (flow coordinates) between the two handles. */
+  waypoints: XY[];
+  /** Dagre-reserved label anchor — guaranteed clear of nodes/other labels. */
+  labelX: number;
+  labelY: number;
   dimmed: boolean;
   active: boolean;
 };
@@ -65,32 +70,37 @@ function midAddr(a: string): string {
   return a.length > 24 ? `${a.slice(0, 12)}…${a.slice(-8)}` : a;
 }
 
-/** Vertical gap (px) between adjacent parallel edges / their labels. */
-const PARALLEL_GAP = 30;
+/** Approximate rendered size of an edge label chip (11px mono). */
+function labelSize(text: string): { width: number; height: number } {
+  return { width: Math.ceil(text.length * 6.7) + 14, height: 22 };
+}
 
 /**
- * Cubic bezier from source to target that bows vertically by `offset` at the
- * midpoint. Unlike `getBezierPath`'s curvature (which does nothing when the
- * endpoints share a Y, as they do in a clean LR layout), this guarantees
- * parallel edges between the same node pair fan apart legibly.
- *
- * Returns `[svgPath, labelX, labelY]`; the label sits at the bow apex.
+ * Smooth (Catmull-Rom) path through the handle endpoints and dagre's routed
+ * waypoints. Dagre threads edges through inter-rank channels around nodes
+ * and label boxes — following its polyline is what keeps long edges from
+ * cutting straight through intermediate nodes.
  */
-function bowedPath(
-  sx: number,
-  sy: number,
-  tx: number,
-  ty: number,
-  offset: number,
-): [string, number, number] {
-  const dx = tx - sx;
-  // A cubic with both control points raised by k reaches 0.75·k at the
-  // midpoint, so k = offset / 0.75 puts the apex exactly at `offset`.
-  const k = offset / 0.75;
-  const c1x = sx + dx * 0.33;
-  const c2x = sx + dx * 0.67;
-  const d = `M ${sx},${sy} C ${c1x},${sy + k} ${c2x},${ty + k} ${tx},${ty}`;
-  return [d, (sx + tx) / 2, (sy + ty) / 2 + offset];
+function smoothPath(pts: XY[]): string {
+  if (pts.length < 2) return "";
+  if (pts.length === 2) {
+    const [a, b] = pts;
+    const dx = (b.x - a.x) * 0.4;
+    return `M ${a.x},${a.y} C ${a.x + dx},${a.y} ${b.x - dx},${b.y} ${b.x},${b.y}`;
+  }
+  let d = `M ${pts[0].x},${pts[0].y}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[Math.min(pts.length - 1, i + 2)];
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${c1x},${c1y} ${c2x},${c2y} ${p2.x},${p2.y}`;
+  }
+  return d;
 }
 
 const KIND_GLYPH: Record<FlowNodeKind, { glyph: string; cls: string }> = {
@@ -143,13 +153,15 @@ function TransferEdgeView({
   data,
   markerEnd,
 }: EdgeProps<TransferEdge>) {
-  const [path, labelX, labelY] = bowedPath(
-    sourceX,
-    sourceY,
-    targetX,
-    targetY,
-    data?.offset ?? 0,
-  );
+  // Endpoints come from the chosen handles; interior waypoints from dagre.
+  const pts: XY[] = [
+    { x: sourceX, y: sourceY },
+    ...(data?.waypoints ?? []),
+    { x: targetX, y: targetY },
+  ];
+  const path = smoothPath(pts);
+  const labelX = data?.labelX ?? (sourceX + targetX) / 2;
+  const labelY = data?.labelY ?? (sourceY + targetY) / 2;
   const opacity = data?.dimmed ? 0.18 : 1;
   return (
     <>
@@ -219,11 +231,36 @@ export function FundFlowGraph({ report }: { report: TraceReport }) {
     if (!flow || flow.edges.length === 0) {
       return { nodes: [] as AddrNode[], edges: [] as TransferEdge[], ordered: [] };
     }
-    const g = new dagre.graphlib.Graph();
+    const ordered = [...flow.edges].sort((a, b) => a.order - b.order);
+
+    // Let dagre lay out EDGES and LABELS, not just nodes: as a multigraph,
+    // every transfer gets its own routed polyline through the inter-rank
+    // channels (around nodes), and giving each edge label real dimensions
+    // reserves canvas space for it — no more labels under nodes or stacked
+    // on one another. "greedy" cycle-breaking handles the round-trips that
+    // dominate swap flows.
+    const g = new dagre.graphlib.Graph({ multigraph: true });
     g.setDefaultEdgeLabel(() => ({}));
-    g.setGraph({ rankdir: "LR", nodesep: 42, ranksep: 200, marginx: 40, marginy: 40 });
+    g.setGraph({
+      rankdir: "LR",
+      acyclicer: "greedy",
+      nodesep: 44,
+      ranksep: 110,
+      edgesep: 26,
+      marginx: 40,
+      marginy: 40,
+    });
     for (const n of flow.nodes) g.setNode(n.id, { width: NODE_W, height: NODE_H });
-    for (const e of flow.edges) g.setEdge(e.from, e.to);
+
+    const displayOf = (e: (typeof ordered)[number]) => ({
+      amount: amountTextCompact(e.amount),
+      symbol: assetSymbol(report, e.asset),
+    });
+    for (const e of ordered) {
+      const d = displayOf(e);
+      const text = `${e.order + 1} ${d.amount} ${d.symbol}`;
+      g.setEdge(e.from, e.to, { ...labelSize(text), labelpos: "c" }, `t${e.id}`);
+    }
     dagre.layout(g);
 
     const nodes: AddrNode[] = flow.nodes.map((n) => {
@@ -243,24 +280,18 @@ export function FundFlowGraph({ report }: { report: TraceReport }) {
       };
     });
 
-    const ordered = [...flow.edges].sort((a, b) => a.order - b.order);
-
-    // Group edges that share a node pair (in either direction) so they can be
-    // fanned symmetrically around the straight line between the two nodes.
-    const pairKey = (e: { from: string; to: string }) =>
-      [e.from, e.to].sort().join("|");
-    const groupTotal = new Map<string, number>();
-    for (const e of ordered) groupTotal.set(pairKey(e), (groupTotal.get(pairKey(e)) ?? 0) + 1);
-    const groupSeen = new Map<string, number>();
-
     const edges: TransferEdge[] = ordered.map((e, i) => {
-      const key = pairKey(e);
-      const gi = groupSeen.get(key) ?? 0;
-      groupSeen.set(key, gi + 1);
-      const gn = groupTotal.get(key)!;
-      // Symmetric fan: e.g. 3 edges → offsets −gap, 0, +gap.
-      const offset = (gi - (gn - 1) / 2) * PARALLEL_GAP;
       const color = assetColor(e.asset);
+      const d = displayOf(e);
+      const routed = g.edge(e.from, e.to, `t${e.id}`) as
+        | { points?: XY[]; x?: number; y?: number }
+        | undefined;
+      // Drop dagre's border endpoints — React Flow supplies exact handle
+      // coordinates — and keep the interior channel waypoints.
+      const waypoints = (routed?.points ?? []).slice(1, -1);
+      const mid = waypoints[Math.floor(waypoints.length / 2)];
+      const labelX = routed?.x ?? mid?.x ?? 0;
+      const labelY = routed?.y ?? mid?.y ?? 0;
       // Connect the sides that face each other: a target left of its source
       // is reached source-left → target-right instead of wrapping around.
       const backward = g.node(e.to).x < g.node(e.from).x;
@@ -275,11 +306,13 @@ export function FundFlowGraph({ report }: { report: TraceReport }) {
         markerEnd: { type: MarkerType.ArrowClosed, color, width: 14, height: 14 },
         data: {
           order: e.order,
-          amount: amountTextCompact(e.amount),
+          amount: d.amount,
           full: amountText(e.amount),
-          symbol: assetSymbol(report, e.asset),
+          symbol: d.symbol,
           color,
-          offset,
+          waypoints,
+          labelX,
+          labelY,
           dimmed: active !== null && i !== active,
           active: i === active,
         },
