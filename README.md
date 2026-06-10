@@ -1,5 +1,9 @@
 # tracer
 
+[![CI](https://github.com/shottah/tracer/actions/workflows/ci.yml/badge.svg)](https://github.com/shottah/tracer/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/shottah/tracer)](https://github.com/shottah/tracer/releases/latest)
+[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](LICENSE-MIT)
+
 **Headless EVM transaction inspector in Rust** — an open-source alternative to
 [Phalcon Explorer](https://explorer.phalcon.xyz) and
 [Tenderly](https://tenderly.co)'s transaction views.
@@ -47,13 +51,13 @@ transfers (3):
 ## Install
 
 **Prebuilt binaries** — grab the archive for your platform from the
-[latest release](../../releases/latest), unpack, and put `tracer` on your
-`PATH`.
+[latest release](https://github.com/shottah/tracer/releases/latest), unpack,
+and put `tracer` on your `PATH`.
 
 **From source** (Rust 1.88+):
 
 ```sh
-cargo install --git <this-repo-url> tracer-cli
+cargo install --git https://github.com/shottah/tracer tracer-cli
 # or, from a checkout:
 cargo build --release -p tracer-cli   # → target/release/tracer
 ```
