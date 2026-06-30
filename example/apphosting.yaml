@@ -1,0 +1,29 @@
+# Firebase App Hosting configuration
+# https://firebase.google.com/docs/app-hosting/configure
+#
+# Next.js (App Router) inspector that shells out to the `tracer` Rust binary
+# (downloaded at build by scripts/fetch-tracer.mjs, bundled via
+# outputFileTracingIncludes). Built with Cloud Build buildpacks (npm), served
+# on Cloud Run.
+
+runConfig:
+  minInstances: 0
+  maxInstances: 2
+  concurrency: 20
+  cpu: 1
+  memoryMiB: 1024
+
+env:
+  # No anvil on serverless -> force the rpc backend.
+  - variable: TRACER_BACKEND
+    value: rpc
+    availability:
+      - RUNTIME
+
+  # ETH_RPC_URL is required at runtime to trace transactions and may embed an
+  # API key, so it lives in Secret Manager. Set it, then uncomment + redeploy:
+  #   firebase apphosting:secrets:set ETH_RPC_URL
+  # - variable: ETH_RPC_URL
+  #   secret: ETH_RPC_URL
+  #   availability:
+  #     - RUNTIME
