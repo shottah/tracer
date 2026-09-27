@@ -1,4 +1,7 @@
+import { AttackFeed } from "@/components/attack-feed";
 import { HashForm } from "@/components/hash-form";
+import { getAttackPage } from "@/lib/attacks/feed";
+import type { AttackPage } from "@/lib/attacks/types";
 import { CHAINS } from "@/lib/chains";
 import { rpcMode, safeHost } from "@/lib/endpoints";
 import { resolveTracerBin } from "@/lib/tracer";
@@ -7,7 +10,7 @@ import { existsSync } from "node:fs";
 // Environment status chips must reflect the running server, not build time.
 export const dynamic = "force-dynamic";
 
-export default function Home() {
+export default async function Home() {
   const mode = rpcMode();
   const chains = mode.kind === "drpc" ? CHAINS.map(({ slug, name }) => ({ slug, name })) : [];
   const mainnets = CHAINS.filter((c) => !c.testnet).map((c) => c.slug);
@@ -15,8 +18,16 @@ export default function Home() {
   const bin = resolveTracerBin();
   const binFound = bin === "tracer" ? undefined : existsSync(bin);
 
+  // The feed is decoration: if its source fails, omit the section.
+  let attacks: AttackPage | null = null;
+  try {
+    attacks = await getAttackPage(null);
+  } catch (err) {
+    console.error("attack feed:", err);
+  }
+
   return (
-    <main className="dotgrid flex min-h-screen flex-col items-center justify-center px-6">
+    <main className="dotgrid flex min-h-screen flex-col items-center justify-center py-16 px-6">
       <div className="rise flex w-full max-w-2xl flex-col items-start gap-6">
         <div>
           <h1 className="font-mono text-4xl font-semibold tracking-tight text-ink">
@@ -75,6 +86,15 @@ export default function Home() {
             </div>
           ))}
         </div>
+
+        {attacks && attacks.items.length > 0 && (
+          <section className="flex w-full flex-col gap-2.5">
+            <h2 className="font-mono text-[11.5px] uppercase tracking-wider text-faint">
+              Hall of fame — replay a famous attack
+            </h2>
+            <AttackFeed initial={attacks} />
+          </section>
+        )}
       </div>
     </main>
   );
