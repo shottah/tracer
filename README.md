@@ -165,11 +165,12 @@ renders the three views the way Phalcon Explorer and Tenderly do — a
 line-numbered **invocation flow**, a **balance-changes** table, and a
 **fund-flow** graph (React Flow on a dotted canvas, arrow-key navigable —
 consuming the `fundFlow` JSON directly, not a Mermaid diagram). It shells out
-to the `tracer` binary server-side and exposes a `/simulate/[hash]` route.
+to the `tracer` binary server-side and exposes `/simulate/<hash>` (finds the chain) and `/simulate/<chain>/<hash>`
+routes across Ethereum, Base, and Arbitrum (plus Sepolia testnets).
 
 ```sh
 cargo build --release -p tracer-cli      # build the engine
-cd example && cp .env.example .env.local # set ETH_RPC_URL
+cd example && cp .env.example .env.local # set DRPC_API_KEY or ETH_RPC_URL
 npm install && npm run dev               # → http://localhost:3000
 ```
 

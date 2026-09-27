@@ -20,10 +20,10 @@ env:
     availability:
       - RUNTIME
 
-  # ETH_RPC_URL is required at runtime to trace transactions and may embed an
-  # API key, so it lives in Secret Manager:
-  #   firebase apphosting:secrets:set ETH_RPC_URL
-  - variable: ETH_RPC_URL
-    secret: ETH_RPC_URL
+  # dRPC key covering every supported chain (see lib/chains.ts). Secret:
+  #   firebase apphosting:secrets:set DRPC_API_KEY
+  # For a single chain, swap this for an ETH_RPC_URL secret instead.
+  - variable: DRPC_API_KEY
+    secret: DRPC_API_KEY
     availability:
       - RUNTIME

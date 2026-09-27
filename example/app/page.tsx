@@ -1,21 +1,15 @@
 import { HashForm } from "@/components/hash-form";
-import { resolveTracerBin, rpcUrl } from "@/lib/tracer";
+import { CHAINS } from "@/lib/chains";
+import { rpcMode, safeHost } from "@/lib/endpoints";
+import { resolveTracerBin } from "@/lib/tracer";
 import { existsSync } from "node:fs";
 
 // Environment status chips must reflect the running server, not build time.
 export const dynamic = "force-dynamic";
 
-function host(url?: string): string | undefined {
-  if (!url) return undefined;
-  try {
-    return new URL(url).host;
-  } catch {
-    return undefined;
-  }
-}
-
 export default function Home() {
-  const rpcHost = host(rpcUrl());
+  const mode = rpcMode();
+  const chains = mode.kind === "drpc" ? CHAINS.map(({ slug, name }) => ({ slug, name })) : [];
   const bin = resolveTracerBin();
   const binFound = bin === "tracer" ? undefined : existsSync(bin);
 
@@ -28,19 +22,22 @@ export default function Home() {
           </h1>
           <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-dim">
             Headless EVM transaction inspection — invocation flow, balance changes, and fund
-            flow, Phalcon-style. Paste a transaction hash from the configured chain.
+            flow, Phalcon-style. Paste a transaction hash from{" "}
+            {chains.length ? "any supported chain" : "the configured chain"}.
           </p>
         </div>
 
-        <HashForm />
+        <HashForm chains={chains} />
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[11.5px] text-faint">
           <span>
             rpc:{" "}
-            {rpcHost ? (
-              <span className="text-pos">{rpcHost}</span>
+            {mode.kind === "drpc" ? (
+              <span className="text-pos">drpc · {chains.map((c) => c.slug).join(", ")}</span>
+            ) : mode.kind === "url" ? (
+              <span className="text-pos">{safeHost(mode.url) ?? "ETH_RPC_URL"}</span>
             ) : (
-              <span className="text-neg">ETH_RPC_URL not set</span>
+              <span className="text-neg">DRPC_API_KEY / ETH_RPC_URL not set</span>
             )}
           </span>
           <span>
