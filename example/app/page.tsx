@@ -10,6 +10,8 @@ export const dynamic = "force-dynamic";
 export default function Home() {
   const mode = rpcMode();
   const chains = mode.kind === "drpc" ? CHAINS.map(({ slug, name }) => ({ slug, name })) : [];
+  const mainnets = CHAINS.filter((c) => !c.testnet).map((c) => c.slug);
+  const hasTestnets = CHAINS.some((c) => c.testnet);
   const bin = resolveTracerBin();
   const binFound = bin === "tracer" ? undefined : existsSync(bin);
 
@@ -33,7 +35,10 @@ export default function Home() {
           <span>
             rpc:{" "}
             {mode.kind === "drpc" ? (
-              <span className="text-pos">drpc · {chains.map((c) => c.slug).join(", ")}</span>
+              <span className="text-pos">
+                drpc · {mainnets.join(", ")}
+                {hasTestnets && " and sepolias"}
+              </span>
             ) : mode.kind === "url" ? (
               <span className="text-pos">{safeHost(mode.url) ?? "ETH_RPC_URL"}</span>
             ) : (
