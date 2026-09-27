@@ -38,7 +38,7 @@ jobs:
         run: cargo build --release -p tracer-cli
 
   example:
-    name: example web app (lint + build)
+    name: example web app (lint + test + build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -57,6 +57,10 @@ jobs:
       - name: Lint
         working-directory: example
         run: npm run lint
+
+      - name: Test
+        working-directory: example
+        run: npm test
 
       - name: Build
         working-directory: example

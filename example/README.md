@@ -102,6 +102,22 @@ derived (built-in labels, token symbols). For tokens without an on-chain
 Address keys are case-insensitive; edits take effect on the next page load
 (no restart needed). The file is gitignored — it's deployment-specific.
 
+## Hall of fame
+
+The home page lists high-profile protocol attacks below the feature tiles;
+each card opens the attack transaction in the inspector. The list comes from
+an `AttackSource` (`lib/attacks/types.ts`); today that's a hand-picked,
+hardcoded set (`lib/attacks/hall-of-fame.ts`). To plug in a live source,
+implement `AttackSource` (opaque cursors, `InvalidCursorError` for bad ones)
+and return it from `attackSource()` in `lib/attacks/feed.ts`.
+
+Pages of 10 are cached for an hour (`unstable_cache`, tag `attacks`) and
+`/api/attacks?cursor=…` responses carry CDN cache headers. Nothing calls
+`revalidateTag` today, and it wouldn't purge the CDN copy — after a data
+change, expect up to an hour (plus the CDN's stale-while-revalidate window)
+before every visitor sees it. Run the unit tests with `npm test` (Node ≥
+22.18, which runs TypeScript natively).
+
 ## Deploying to Vercel
 
 The app deploys as a normal Next.js project with one twist: the serverless
