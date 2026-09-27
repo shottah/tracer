@@ -1,10 +1,13 @@
 import { AttackFeed } from "@/components/attack-feed";
 import { HashForm } from "@/components/hash-form";
+import { RecentFeed } from "@/components/recent-feed";
 import { getAttackPage } from "@/lib/attacks/feed";
 import type { AttackPage } from "@/lib/attacks/types";
 import { CHAINS } from "@/lib/chains";
 import { rpcMode, safeHost } from "@/lib/endpoints";
+import { RECENT_COOKIE, parseRecent } from "@/lib/recent";
 import { resolveTracerBin } from "@/lib/tracer";
+import { cookies } from "next/headers";
 import { existsSync } from "node:fs";
 
 // Environment status chips must reflect the running server, not build time.
@@ -18,6 +21,7 @@ export default async function Home() {
   const hasTestnets = CHAINS.some((c) => c.testnet);
   const bin = resolveTracerBin();
   const binFound = bin === "tracer" ? undefined : existsSync(bin);
+  const recent = parseRecent((await cookies()).get(RECENT_COOKIE)?.value);
 
   // The feed is decoration: if its source fails, omit the section.
   let attacks: AttackPage | null = null;
@@ -87,6 +91,8 @@ export default async function Home() {
             </div>
           ))}
         </div>
+
+        <RecentFeed initial={recent} />
 
         {attacks && attacks.items.length > 0 && (
           <section className="flex w-full flex-col gap-2.5">

@@ -7,7 +7,7 @@
     "build": "node scripts/fetch-tracer.mjs && next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test \"lib/attacks/*.test.ts\""
+    "test": "node --test \"lib/*.test.ts\" \"lib/attacks/*.test.ts\""
   },
   "dependencies": {
     "@dagrejs/dagre": "^3.0.0",

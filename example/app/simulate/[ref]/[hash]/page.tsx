@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { InspectorTabs } from "@/components/inspector-tabs";
+import { RememberTx } from "@/components/remember-tx";
 import { Panel, RpcNotConfigured, Shell } from "@/components/simulate-shell";
 import { TxHeader } from "@/components/tx-header";
 import { endpoints, redactSecrets, type Endpoint } from "@/lib/endpoints";
+import { displayName } from "@/lib/format";
 import { applyLabelOverrides, labelOverrides } from "@/lib/labels";
 import { TX_HASH_RE, deepDefault, runReport } from "@/lib/tracer";
 
@@ -100,9 +102,26 @@ export default async function SimulatePage({
 
   // Local labels.json overrides for unverified contracts/wallets.
   const report = applyLabelOverrides(result.report, labelOverrides());
+  const { tx } = report;
+  const method = !tx.to
+    ? "create"
+    : tx.input === "0x"
+      ? "transfer"
+      : (report.trace?.decoded?.name ?? tx.input.slice(0, 10));
+  // Unlabeled targets fall back to a short address so feed rows stay distinct.
+  const target = tx.to ?? tx.contractCreated;
 
   return (
     <Shell hash={hash} chain={slug}>
+      <RememberTx
+        visit={{
+          chain: slug,
+          hash,
+          ok: tx.status,
+          method,
+          to: target && displayName(report, target),
+        }}
+      />
       <TxHeader report={report} />
       <InspectorTabs report={report} />
     </Shell>
