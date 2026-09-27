@@ -17,11 +17,11 @@ export function attackSource(): AttackSource {
 /** One page of the feed, cached per cursor for an hour (tag: "attacks"). */
 export const getAttackPage: (cursor: string | null) => Promise<AttackPage> = unstable_cache(
   (cursor: string | null) => attackSource().page(cursor, PAGE_SIZE),
-  ["attacks-page"],
+  ["attacks-page", "hall-of-fame", String(PAGE_SIZE)], // change "hall-of-fame" when attackSource() returns a different source
   { revalidate: 3600, tags: ["attacks"] },
 );
 
-/** `instanceof` may not survive the cache layer, so match on the name too. */
+/** Matches by name as well as instanceof, so sources that throw from another realm or bundle still map to a 400. */
 export function isInvalidCursor(err: unknown): boolean {
   return err instanceof Error && err.name === "InvalidCursorError";
 }
