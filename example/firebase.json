@@ -6,7 +6,6 @@
       "node_modules",
       ".git",
       ".next",
-      ".vercel",
       ".firebase",
       "bin",
       "firebase-debug.log",
