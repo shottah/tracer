@@ -81,6 +81,7 @@ npm run dev
 | `TRACER_BIN` | no | explicit path to the `tracer` binary |
 | `TRACER_DEEP` | no | `1` (default) runs `--deep`; `0` disables. Per-request override: `?deep=1` / `?deep=0` |
 | `LABELS_FILE` | no | path to the address-labels file (default `./labels.json`) |
+| `NEXT_PUBLIC_GA_ID` | no | Google Analytics 4 measurement ID (`G-…`); unset = no analytics tag. Inlined at build time |
 
 ## Labeling unverified contracts (`labels.json`)
 
@@ -117,6 +118,24 @@ Pages of 10 are cached for an hour (`unstable_cache`, tag `attacks`) and
 change, expect up to an hour (plus the CDN's stale-while-revalidate window)
 before every visitor sees it. Run the unit tests with `npm test` (Node ≥
 22.18, which runs TypeScript natively).
+
+## Analytics
+
+Setting `NEXT_PUBLIC_GA_ID` loads Google Analytics 4 and enables these
+custom events (typed in [`lib/analytics.ts`](lib/analytics.ts)):
+
+| Event | Fires when | Parameters |
+| --- | --- | --- |
+| `trace_submit` | a hash is submitted (home form or breadcrumb) | `chain` (`auto` = locate), `source` (`form` / `crumb`) |
+| `trace_view` | a report renders | `chain`, `deep`, `tx_status` (`success` / `reverted`), `calls` |
+| `trace_error` | a simulate page shows an error | `chain`, `error_kind` (`not_found` / `trace_failed` / `rpc_unreachable` / `chain_unavailable`) |
+| `tab_view` | the user switches inspector tab (the default Invocation Flow isn't counted) | `tab` |
+| `feed_click` | a hall-of-fame or recently-inspected card is opened | `feed` (`attack` / `recent`), `chain`, `protocol` |
+| `chain_select` | the chain picker changes | `chain` |
+
+GA only reports parameters registered under Admin → Custom definitions
+(event-scoped dimensions for the strings, a metric for `calls`); renaming
+one starts a new, empty dimension. `trace_view` is the key event.
 
 ## Deploying to Vercel
 

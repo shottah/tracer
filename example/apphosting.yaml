@@ -27,3 +27,11 @@ env:
     secret: DRPC_API_KEY
     availability:
       - RUNTIME
+
+  # GA4 measurement ID (public, not a secret). NEXT_PUBLIC_* is inlined into
+  # the client bundle at build time, so BUILD availability is required.
+  - variable: NEXT_PUBLIC_GA_ID
+    value: G-HJS4EZSXX3
+    availability:
+      - BUILD
+      - RUNTIME

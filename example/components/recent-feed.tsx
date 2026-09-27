@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Chip } from "@/components/ui";
 import { writeRecentCookie } from "@/components/remember-tx";
+import { track } from "@/lib/analytics";
 import { chainBySlug } from "@/lib/chains";
 import type { RecentTx } from "@/lib/recent";
 
@@ -45,6 +46,7 @@ function RecentRow({ tx }: { tx: RecentTx }) {
   return (
     <Link
       href={`/simulate/${tx.chain}/${tx.hash}`}
+      onClick={() => track({ name: "feed_click", params: { feed: "recent", chain: tx.chain } })}
       className="group flex flex-col gap-1 px-3.5 py-2.5 transition-colors first:rounded-t-md last:rounded-b-md hover:bg-panel-2"
     >
       <div className="flex items-baseline justify-between gap-3">

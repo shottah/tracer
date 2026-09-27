@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@dagrejs/dagre": "^3.0.0",
+    "@next/third-parties": "^16.2.9",
     "@xyflow/react": "^12.11.0",
     "next": "16.2.9",
     "react": "19.2.4",

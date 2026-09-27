@@ -3,6 +3,8 @@
 /** Tab host for the three Phalcon-style panels. */
 
 import { useState } from "react";
+import { track } from "@/lib/analytics";
+import { countFrames } from "@/lib/format";
 import type { TraceReport } from "@/lib/types";
 import { BalanceChanges } from "./balance-changes";
 import { FundFlowGraph } from "./fund-flow";
@@ -11,15 +13,8 @@ import { InvocationFlow } from "./invocation-flow";
 const TABS = ["Invocation Flow", "Balance Changes", "Fund Flow"] as const;
 type Tab = (typeof TABS)[number];
 
-function countFrames(report: TraceReport): number {
-  let n = 0;
-  const walk = (f: NonNullable<TraceReport["trace"]>) => {
-    n++;
-    for (const c of f.children ?? []) walk(c);
-  };
-  if (report.trace) walk(report.trace);
-  return n;
-}
+/** "Balance Changes" → "balance_changes": stable, GA-friendly values. */
+const tabParam = (t: Tab) => t.toLowerCase().replace(/ /g, "_");
 
 export function InspectorTabs({ report }: { report: TraceReport }) {
   const [tab, setTab] = useState<Tab>("Invocation Flow");
@@ -36,7 +31,10 @@ export function InspectorTabs({ report }: { report: TraceReport }) {
           <button
             key={t}
             type="button"
-            onClick={() => setTab(t)}
+            onClick={() => {
+              if (t !== tab) track({ name: "tab_view", params: { tab: tabParam(t) } });
+              setTab(t);
+            }}
             className={`relative cursor-pointer px-3.5 py-2.5 text-[13px] transition-colors ${
               tab === t ? "text-ink" : "text-dim hover:text-ink"
             }`}
