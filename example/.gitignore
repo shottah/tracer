@@ -36,6 +36,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# firebase
+.firebase
+firebase-debug*.log
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
@@ -46,5 +50,5 @@ next-env.d.ts
 # local address labels (project-specific; commit the template instead)
 /labels.json
 
-# tracer binary downloaded by scripts/fetch-tracer.mjs (Vercel builds)
+# tracer binary downloaded by scripts/fetch-tracer.mjs (linux deploy builds)
 /bin

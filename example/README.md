@@ -96,7 +96,7 @@ Address keys are case-insensitive; edits take effect on the next page load
 The app deploys as a normal Next.js project with one twist: the serverless
 function needs the Rust `tracer` binary. The pieces that make that work:
 
-- **Build-time binary fetch** — [`vercel.json`](vercel.json) runs
+- **Build-time binary fetch** — `npm run build` runs
   [`scripts/fetch-tracer.mjs`](scripts/fetch-tracer.mjs) before `next build`,
   downloading the fully static `x86_64-unknown-linux-musl` asset from this
   repo's GitHub release into `bin/tracer` (static musl runs on Vercel's
@@ -129,6 +129,26 @@ Serverless constraints to know:
   of attempting the anvil fallback.
 - **Labels** — `labels.json` is gitignored, so deployed instances read
   `LABELS_JSON` (same shape, inline) instead; env entries win over the file.
+
+## Deploying to Firebase App Hosting
+
+Same build as Vercel (`npm run build` fetches the musl binary, bundled via
+`outputFileTracingIncludes`), served on Cloud Run. Config lives in
+[`apphosting.yaml`](apphosting.yaml) (instance sizing, `TRACER_BACKEND=rpc`,
+`ETH_RPC_URL` from Secret Manager) and [`firebase.json`](firebase.json)
+(backend `tracer`). [`.firebaserc`](.firebaserc) points at the maintainer's
+project — switch it with `firebase use --add`.
+
+Deploy from `example/` (the Firebase CLI looks for `firebase.json` in the
+current directory):
+
+```sh
+firebase apphosting:secrets:set ETH_RPC_URL   # a debug-capable RPC endpoint
+firebase deploy --only apphosting
+```
+
+The same constraints as Vercel apply: the endpoint must support
+`debug_traceTransaction` (Alchemy's free tier does not).
 
 ## Notes
 

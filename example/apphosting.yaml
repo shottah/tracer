@@ -21,9 +21,9 @@ env:
       - RUNTIME
 
   # ETH_RPC_URL is required at runtime to trace transactions and may embed an
-  # API key, so it lives in Secret Manager. Set it, then uncomment + redeploy:
+  # API key, so it lives in Secret Manager:
   #   firebase apphosting:secrets:set ETH_RPC_URL
-  # - variable: ETH_RPC_URL
-  #   secret: ETH_RPC_URL
-  #   availability:
-  #     - RUNTIME
+  - variable: ETH_RPC_URL
+    secret: ETH_RPC_URL
+    availability:
+      - RUNTIME

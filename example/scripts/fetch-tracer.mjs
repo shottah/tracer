@@ -1,9 +1,9 @@
 /**
  * Fetch a prebuilt `tracer` binary from GitHub Releases into ./bin/tracer.
  *
- * Used by the Vercel build (see vercel.json): functions there run on x86_64
- * Amazon Linux, so the fully static musl asset is downloaded and bundled
- * with the serverless function via `outputFileTracingIncludes`.
+ * Runs as part of `npm run build` (Vercel, Firebase App Hosting): both run
+ * on x86_64 Linux, so the fully static musl asset is downloaded and bundled
+ * with the server via `outputFileTracingIncludes`.
  *
  * Local dev machines skip this (the app prefers ../target/{release,debug});
  * force with TRACER_FETCH_FORCE=1 and optionally TRACER_TARGET/TRACER_VERSION.
