@@ -23,8 +23,8 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             runner: ubuntu-latest
           # Fully static build — runs on any x86_64 Linux, including the
-          # Amazon Linux images behind Vercel/AWS Lambda (example/ deploys
-          # download this asset at build time).
+          # Firebase App Hosting (Cloud Run) image the example/ deploy
+          # downloads this asset into at build time.
           - target: x86_64-unknown-linux-musl
             runner: ubuntu-latest
           - target: aarch64-unknown-linux-gnu

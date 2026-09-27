@@ -1,8 +1,8 @@
 /**
  * Fetch a prebuilt `tracer` binary from GitHub Releases into ./bin/tracer.
  *
- * Runs as part of `npm run build` (Vercel, Firebase App Hosting): both run
- * on x86_64 Linux, so the fully static musl asset is downloaded and bundled
+ * Runs as part of `npm run build` (Firebase App Hosting): the build runs on
+ * x86_64 Linux, so the fully static musl asset is downloaded and bundled
  * with the server via `outputFileTracingIncludes`.
  *
  * Local dev machines skip this (the app prefers ../target/{release,debug});

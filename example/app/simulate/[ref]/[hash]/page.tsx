@@ -7,7 +7,7 @@ import { endpoints, redactSecrets, type Endpoint } from "@/lib/endpoints";
 import { applyLabelOverrides, labelOverrides } from "@/lib/labels";
 import { TX_HASH_RE, deepDefault, runReport } from "@/lib/tracer";
 
-// Tracing big transactions takes a while; allow up to 5 minutes on Vercel.
+// Tracing big transactions takes a while; allow up to 5 minutes.
 export const maxDuration = 300;
 
 /** `/simulate/<chain>/<hash>` — trace `hash` on a specific chain. */
