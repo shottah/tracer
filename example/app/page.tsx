@@ -6,12 +6,31 @@ import type { AttackPage } from "@/lib/attacks/types";
 import { CHAINS } from "@/lib/chains";
 import { rpcMode, safeHost } from "@/lib/endpoints";
 import { RECENT_COOKIE, parseRecent } from "@/lib/recent";
+import { SITE_DESCRIPTION, SITE_NAME, jsonLd, siteUrl } from "@/lib/site";
 import { resolveTracerBin } from "@/lib/tracer";
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { existsSync } from "node:fs";
 
 // Environment status chips must reflect the running server, not build time.
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
+
+const STRUCTURED_DATA = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: SITE_NAME,
+  url: siteUrl(),
+  description: SITE_DESCRIPTION,
+  applicationCategory: "DeveloperApplication",
+  operatingSystem: "Any",
+  isAccessibleForFree: true,
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  sameAs: ["https://github.com/shottah/tracer"],
+};
 
 export default async function Home() {
   const mode = rpcMode();
@@ -33,6 +52,10 @@ export default async function Home() {
 
   return (
     <main className="dotgrid flex min-h-screen flex-col items-center justify-center py-16 px-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLd(STRUCTURED_DATA) }}
+      />
       <div className="rise flex w-full max-w-2xl flex-col items-start gap-6">
         <div>
           <h1 className="font-mono text-4xl font-semibold tracking-tight text-ink">

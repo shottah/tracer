@@ -1,17 +1,58 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AttackBrief } from "@/components/attack-brief";
 import { InspectorTabs } from "@/components/inspector-tabs";
 import { RememberTx } from "@/components/remember-tx";
 import { Panel, RpcNotConfigured, Shell } from "@/components/simulate-shell";
 import { TrackEvent } from "@/components/track-event";
 import { TxHeader } from "@/components/tx-header";
+import { formatLossUsd } from "@/lib/attacks/format";
+import { findAttack } from "@/lib/attacks/hall-of-fame";
+import { chainBySlug } from "@/lib/chains";
 import { endpoints, redactSecrets, type Endpoint } from "@/lib/endpoints";
-import { countFrames, displayName } from "@/lib/format";
+import { countFrames, displayName, shortHex } from "@/lib/format";
 import { applyLabelOverrides, labelOverrides } from "@/lib/labels";
 import { TX_HASH_RE, deepDefault, runReport } from "@/lib/tracer";
 
 // Tracing big transactions takes a while; allow up to 5 minutes on Vercel.
 export const maxDuration = 300;
+
+/**
+ * Never runs the trace: link-preview bots block on metadata, and the page
+ * render already pays for one. Only curated attacks are indexable; any other
+ * hash is an unbounded, per-crawl-billed URL space (robots.txt blocks it too).
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ ref: string; hash: string }>;
+}): Promise<Metadata> {
+  const { ref: slug, hash } = await params;
+  const path = `/simulate/${slug}/${hash}`;
+  const attack = findAttack(slug, hash);
+  if (attack) {
+    const chain = chainBySlug(attack.chain)?.name ?? attack.chain;
+    const title = `${attack.protocol} exploit (${formatLossUsd(attack.lossUsd)}): ${chain} transaction trace`;
+    const description = `${attack.summary} Replay the ${attack.date} attack: call tree, balance changes and fund flow.`;
+    return {
+      title,
+      description,
+      alternates: { canonical: path },
+      openGraph: { type: "article", siteName: "tracer", url: path, title, description },
+    };
+  }
+  const chain = chainBySlug(slug)?.name ?? slug;
+  const title = `Transaction ${shortHex(hash, 14)} on ${chain}`;
+  const description = `Call tree, balance changes and fund flow of ${chain} transaction ${hash}.`;
+  return {
+    title,
+    description,
+    alternates: { canonical: path },
+    robots: { index: false, follow: true },
+    openGraph: { type: "website", siteName: "tracer", url: path, title, description },
+  };
+}
 
 /** `/simulate/<chain>/<hash>` — trace `hash` on a specific chain. */
 export default async function SimulatePage({
@@ -24,6 +65,7 @@ export default async function SimulatePage({
   const { ref: slug, hash } = await params;
   const sp = await searchParams;
   if (!TX_HASH_RE.test(hash)) notFound();
+  const attack = findAttack(slug, hash);
 
   let eps: Endpoint[];
   try {
@@ -31,6 +73,7 @@ export default async function SimulatePage({
   } catch (err) {
     return (
       <Shell hash={hash} chain={slug}>
+        <meta name="robots" content="noindex" />
         <TrackEvent
           event={{ name: "trace_error", params: { chain: slug, error_kind: "rpc_unreachable" } }}
         />
@@ -79,6 +122,9 @@ export default async function SimulatePage({
   if (!result.ok) {
     return (
       <Shell hash={hash} chain={slug}>
+        {/* Streaming already sent 200; keep a transient failure out of the index. */}
+        <meta name="robots" content="noindex" />
+        {attack && <AttackBrief attack={attack} />}
         <TrackEvent
           event={{
             name: "trace_error",
@@ -149,6 +195,7 @@ export default async function SimulatePage({
           },
         }}
       />
+      {attack && <AttackBrief attack={attack} />}
       <TxHeader report={report} />
       <InspectorTabs report={report} />
     </Shell>

@@ -35,3 +35,12 @@ env:
     availability:
       - BUILD
       - RUNTIME
+
+  # Canonical origin for metadata, robots.txt and the sitemap (prerendered at
+  # build, so BUILD availability is required). Requests to the default
+  # *.hosted.app domain are 308-redirected here by proxy.ts.
+  - variable: SITE_URL
+    value: https://tracer.shottah.xyz
+    availability:
+      - BUILD
+      - RUNTIME

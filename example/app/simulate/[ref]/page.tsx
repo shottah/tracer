@@ -1,9 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Panel, RpcNotConfigured, Shell } from "@/components/simulate-shell";
 import { TrackEvent } from "@/components/track-event";
 import { endpoints, locateTx, redactSecrets, type Endpoint } from "@/lib/endpoints";
 import { TX_HASH_RE } from "@/lib/tracer";
+
+export const metadata: Metadata = {
+  title: "Locating transaction",
+  robots: { index: false, follow: true },
+};
 
 /**
  * `/simulate/<hash>` — find which chain the transaction is on, then redirect
