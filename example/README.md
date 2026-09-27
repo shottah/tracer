@@ -12,20 +12,28 @@ report logic is reimplemented here.
 ## How it works
 
 ```
-browser ──▶ /simulate/[hash] (server component)
-                 │  spawns: tracer report <hash> --rpc-url $ETH_RPC_URL --compact [--deep]
+browser ──▶ /simulate/<hash>          finds the chain (eth_getTransactionByHash on each)
+                 │  redirects
+                 ▼
+            /simulate/<chain>/<hash> (server component)
+                 │  spawns: tracer report <hash> --rpc-url <chain's endpoint> --compact [--deep]
                  ▼
             TraceReport JSON ──▶ React views (invocation tree · balances · React Flow graph)
 ```
 
+- **`lib/chains.ts`** lists the supported chains (Ethereum, Base, Arbitrum
+  One, and their Sepolia testnets); **`lib/endpoints.ts`** maps each to an
+  RPC URL and locates a hash across them.
 - **`lib/tracer.ts`** resolves the binary (`TRACER_BIN`, then
   `../target/{release,debug}/tracer`, then `PATH`), runs it, and caches each
   successful report (a mined transaction's report is immutable).
 - **`lib/types.ts`** mirrors the JSON schema; **`lib/format.ts`** holds
   client-safe display helpers (address shortening, asset colors, amounts).
-- **`app/simulate/[hash]/page.tsx`** is the route. Invalid hashes 404;
-  unknown transactions render a graceful "not found"; a missing
-  `ETH_RPC_URL` renders setup guidance.
+- **`app/simulate/[ref]/page.tsx`** (`/simulate/<hash>`) locates the chain
+  and redirects; **`app/simulate/[ref]/[hash]/page.tsx`**
+  (`/simulate/<chain>/<hash>`) renders the report. Invalid hashes 404;
+  unknown transactions render a graceful "not found"; a missing RPC config
+  renders setup guidance.
 - The three views live in `components/` — `invocation-flow.tsx` (line-numbered
   call tree with events interleaved by execution `position`, kind chips,
   decoded calls, storage toggles, search), `balance-changes.tsx`, and
@@ -45,7 +53,7 @@ cargo build --release -p tracer-cli
 ```sh
 cd example
 cp .env.example .env.local
-# edit .env.local — set ETH_RPC_URL to any JSON-RPC endpoint
+# edit .env.local — set DRPC_API_KEY (all chains) or ETH_RPC_URL (one chain)
 ```
 
 Any plain RPC works. When the endpoint lacks `debug_traceTransaction`,
@@ -59,14 +67,17 @@ directly** with `--deep`, start it with `anvil --steps-tracing`.
 npm install
 npm run dev
 # open http://localhost:3000, paste a tx hash, or go straight to
-# http://localhost:3000/simulate/0x<hash>
+# http://localhost:3000/simulate/0x<hash> (any chain)
+# http://localhost:3000/simulate/base/0x<hash> (a specific chain)
 ```
 
 ## Environment
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `ETH_RPC_URL` | yes | JSON-RPC endpoint tracer reads from |
+| `DRPC_API_KEY` | one of these | [dRPC](https://drpc.org) key; enables every chain in `lib/chains.ts` via `https://lb.drpc.live/<chain>/<key>`. Wins over `ETH_RPC_URL` |
+| `ETH_RPC_URL` | one of these | a single JSON-RPC endpoint; its chain comes from `eth_chainId` |
+| `TRACER_BACKEND` | no | force `auto` / `rpc` / `anvil-fork` (use `rpc` on serverless) |
 | `TRACER_BIN` | no | explicit path to the `tracer` binary |
 | `TRACER_DEEP` | no | `1` (default) runs `--deep`; `0` disables. Per-request override: `?deep=1` / `?deep=0` |
 | `LABELS_FILE` | no | path to the address-labels file (default `./labels.json`) |
@@ -106,7 +117,7 @@ function needs the Rust `tracer` binary. The pieces that make that work:
   [`next.config.ts`](next.config.ts) ships `bin/tracer` inside the function
   bundle; the bridge resolves it at `./bin/tracer` and restores the exec bit
   if a copy step dropped it.
-- **Runtime limits** — the `/simulate/[hash]` page exports
+- **Runtime limits** — the `/simulate/<chain>/<hash>` page exports
   `maxDuration = 300`; reports are cached in function memory (per warm
   instance).
 
@@ -114,7 +125,7 @@ Deploy from `example/`:
 
 ```sh
 vercel link                                  # create/link the project
-vercel env add ETH_RPC_URL production        # a debug-capable RPC endpoint
+vercel env add DRPC_API_KEY production       # or ETH_RPC_URL for one chain
 vercel env add TRACER_BACKEND production     # → rpc
 vercel env add LABELS_JSON production        # optional: inline labels.json
 vercel deploy --prod
@@ -135,7 +146,7 @@ Serverless constraints to know:
 Same build as Vercel (`npm run build` fetches the musl binary, bundled via
 `outputFileTracingIncludes`), served on Cloud Run. Config lives in
 [`apphosting.yaml`](apphosting.yaml) (instance sizing, `TRACER_BACKEND=rpc`,
-`ETH_RPC_URL` from Secret Manager) and [`firebase.json`](firebase.json)
+`DRPC_API_KEY` from Secret Manager) and [`firebase.json`](firebase.json)
 (backend `tracer`). [`.firebaserc`](.firebaserc) points at the maintainer's
 project — switch it with `firebase use --add`.
 
@@ -143,7 +154,7 @@ Deploy from `example/` (the Firebase CLI looks for `firebase.json` in the
 current directory):
 
 ```sh
-firebase apphosting:secrets:set ETH_RPC_URL   # a debug-capable RPC endpoint
+firebase apphosting:secrets:set DRPC_API_KEY  # dRPC key (paid tier for debug_*)
 firebase deploy --only apphosting
 ```
 

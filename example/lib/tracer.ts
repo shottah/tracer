@@ -8,6 +8,7 @@ import { execFile } from "node:child_process";
 import { accessSync, chmodSync, constants, existsSync } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
+import { redactSecrets, type Endpoint } from "./endpoints";
 import type { TraceReport } from "./types";
 
 const execFileAsync = promisify(execFile);
@@ -55,10 +56,6 @@ function ensureExecutable(bin: string): string {
   return bin;
 }
 
-export function rpcUrl(): string | undefined {
-  return process.env.ETH_RPC_URL;
-}
-
 /** Default for `--deep` (storage + exact interleaving); query param overrides. */
 export function deepDefault(): boolean {
   return process.env.TRACER_DEEP !== "0";
@@ -76,11 +73,15 @@ function backendArg(): string | undefined {
 
 const cache = new Map<string, Promise<ReportResult>>();
 
-export function runReport(hash: string, opts: ReportOptions): Promise<ReportResult> {
-  const key = `${hash.toLowerCase()}:${opts.deep ? "deep" : "fast"}`;
+export function runReport(
+  hash: string,
+  endpoint: Endpoint,
+  opts: ReportOptions,
+): Promise<ReportResult> {
+  const key = `${endpoint.chain.slug}:${hash.toLowerCase()}:${opts.deep ? "deep" : "fast"}`;
   const hit = cache.get(key);
   if (hit) return hit;
-  const pending = runReportUncached(hash, opts).then((result) => {
+  const pending = runReportUncached(hash, endpoint.url, opts).then((result) => {
     if (!result.ok) cache.delete(key); // only immutable successes stay cached
     return result;
   });
@@ -88,13 +89,13 @@ export function runReport(hash: string, opts: ReportOptions): Promise<ReportResu
   return pending;
 }
 
-async function runReportUncached(hash: string, opts: ReportOptions): Promise<ReportResult> {
+async function runReportUncached(
+  hash: string,
+  url: string,
+  opts: ReportOptions,
+): Promise<ReportResult> {
   if (!TX_HASH_RE.test(hash)) {
     return { ok: false, kind: "notFound", message: "not a transaction hash" };
-  }
-  const url = rpcUrl();
-  if (!url) {
-    return { ok: false, kind: "error", message: "ETH_RPC_URL is not set" };
   }
   const bin = resolveTracerBin();
   const args = ["report", hash, "--rpc-url", url, "--compact"];
@@ -124,8 +125,9 @@ async function runReportUncached(hash: string, opts: ReportOptions): Promise<Rep
     if (e.killed) {
       return { ok: false, kind: "error", message: "tracer timed out after 180s" };
     }
-    const stderr = (e.stderr ?? "").trim();
-    const lastLine = stderr.split("\n").filter(Boolean).pop() ?? String(e);
+    // Transport errors can echo the request URL, which embeds the API key.
+    const stderr = redactSecrets((e.stderr ?? "").trim());
+    const lastLine = stderr.split("\n").filter(Boolean).pop() ?? redactSecrets(String(e));
     if (e.code === 2) {
       return { ok: false, kind: "notFound", message: lastLine };
     }
