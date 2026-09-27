@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { CHAINS } from "../chains.ts";
-import { HALL_OF_FAME, HallOfFameSource } from "./hall-of-fame.ts";
+import { HALL_OF_FAME, HallOfFameSource, attackPath, findAttack } from "./hall-of-fame.ts";
 import { InvalidCursorError } from "./types.ts";
 
 const source = new HallOfFameSource();
@@ -46,4 +46,16 @@ test("seed data is well-formed", () => {
   }
   const losses = HALL_OF_FAME.map((a) => a.lossUsd ?? -1);
   assert.deepEqual(losses, [...losses].sort((x, y) => y - x), "sorted by loss, descending");
+});
+
+test("findAttack matches chain + hash, case-insensitively", () => {
+  const euler = HALL_OF_FAME[0];
+  assert.equal(findAttack(euler.chain, euler.txHash.toUpperCase().replace("0X", "0x")), euler);
+  assert.equal(findAttack("base", euler.txHash), undefined);
+  assert.equal(findAttack(euler.chain, `0x${"ab".repeat(32)}`), undefined);
+});
+
+test("attackPath is the inspector route for the attack", () => {
+  const euler = HALL_OF_FAME[0];
+  assert.equal(attackPath(euler), `/simulate/ethereum/${euler.txHash}`);
 });

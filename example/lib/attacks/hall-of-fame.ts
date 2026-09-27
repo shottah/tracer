@@ -64,6 +64,17 @@ export const HALL_OF_FAME: readonly Attack[] = [
   },
 ];
 
+/** The hall-of-fame attack traced by `/simulate/<chain>/<hash>`, if any. */
+export function findAttack(chain: string, txHash: string): Attack | undefined {
+  const hash = txHash.toLowerCase();
+  return HALL_OF_FAME.find((a) => a.chain === chain && a.txHash.toLowerCase() === hash);
+}
+
+/** Inspector path for an attack's transaction. */
+export function attackPath(a: Attack): string {
+  return `/simulate/${a.chain}/${a.txHash}`;
+}
+
 /** Canonical non-negative integers only: "0", "12" — not "02", "1.0", " 1". */
 const OFFSET_RE = /^(0|[1-9]\d*)$/;
 

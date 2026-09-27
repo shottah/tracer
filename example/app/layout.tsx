@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/site";
 import "./globals.css";
 
 const plexSans = IBM_Plex_Sans({
@@ -15,10 +16,23 @@ const plexMono = IBM_Plex_Mono({
   weight: ["400", "500", "600"],
 });
 
+// Pages override title/description/canonical; openGraph and twitter set here
+// are replaced wholesale by any page that defines its own.
 export const metadata: Metadata = {
-  title: "tracer — EVM transaction inspector",
-  description:
-    "Open-source Phalcon/Tenderly-style transaction inspection: invocation flow, balance changes, fund flow.",
+  metadataBase: new URL(siteUrl()),
+  title: {
+    default: "tracer — EVM transaction inspector",
+    template: "%s · tracer",
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: "tracer — EVM transaction inspector",
+    description: SITE_DESCRIPTION,
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 // Public by design (it ships in the page anyway); inlined at build time.

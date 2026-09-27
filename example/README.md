@@ -81,6 +81,7 @@ npm run dev
 | `TRACER_BIN` | no | explicit path to the `tracer` binary |
 | `TRACER_DEEP` | no | `1` (default) runs `--deep`; `0` disables. Per-request override: `?deep=1` / `?deep=0` |
 | `LABELS_FILE` | no | path to the address-labels file (default `./labels.json`) |
+| `SITE_URL` | no | public origin (e.g. `https://tracer.shottah.xyz`) for canonical URLs, robots.txt, sitemap and share cards; `*.hosted.app` requests redirect to it. Needed at build time |
 | `NEXT_PUBLIC_GA_ID` | no | Google Analytics 4 measurement ID (`G-…`); unset = no analytics tag. Inlined at build time |
 
 ## Labeling unverified contracts (`labels.json`)
@@ -136,6 +137,17 @@ custom events (typed in [`lib/analytics.ts`](lib/analytics.ts)):
 GA only reports parameters registered under Admin → Custom definitions
 (event-scoped dimensions for the strings, a metric for `calls`); renaming
 one starts a new, empty dimension. `trace_view` is the key event.
+
+## SEO
+
+Only the home page and the hall-of-fame traces are meant to rank. Every
+other `/simulate/…` URL is `noindex` and disallowed in `robots.txt` for
+search crawlers, since each crawl would run a paid debug trace; link-preview
+bots (Twitterbot, Slackbot, Discordbot, …) may still fetch them so shared
+links unfurl. Metadata and `opengraph-image` cards are built from the URL
+and `lib/attacks/hall-of-fame.ts` alone and never trigger a trace.
+`app/sitemap.ts` lists the attacks, so adding one to the hall of fame also
+publishes it. Set `SITE_URL`; `proxy.ts` 308-redirects `*.hosted.app` to it.
 
 ## Deploying to Vercel
 
