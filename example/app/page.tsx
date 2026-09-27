@@ -12,7 +12,8 @@ export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const mode = rpcMode();
-  const chains = mode.kind === "drpc" ? CHAINS.map(({ slug, name }) => ({ slug, name })) : [];
+  const chains =
+    mode.kind === "drpc" ? CHAINS.map(({ slug, name, testnet }) => ({ slug, name, testnet })) : [];
   const mainnets = CHAINS.filter((c) => !c.testnet).map((c) => c.slug);
   const hasTestnets = CHAINS.some((c) => c.testnet);
   const bin = resolveTracerBin();

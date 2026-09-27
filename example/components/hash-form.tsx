@@ -2,14 +2,18 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { ChainIcon } from "./chain-icon";
 
 const HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 
+type ChainOption = { slug: string; name: string; testnet: boolean };
+
 /**
  * Home-page hash input. With more than one chain configured, a selector picks
- * the chain; "Auto" searches all of them (`/simulate/<hash>`).
+ * the chain; "Auto" searches all of them (`/simulate/<hash>`). On mobile the
+ * picker and input share a row and the action gets its own full-width row.
  */
-export function HashForm({ chains }: { chains: { slug: string; name: string }[] }) {
+export function HashForm({ chains }: { chains: ChainOption[] }) {
   const router = useRouter();
   const [value, setValue] = useState("");
   const [chain, setChain] = useState("");
@@ -24,39 +28,154 @@ export function HashForm({ chains }: { chains: { slug: string; name: string }[] 
         setPending(true);
         router.push(chain ? `/simulate/${chain}/${value.trim()}` : `/simulate/${value.trim()}`);
       }}
-      className="flex w-full max-w-2xl items-center gap-2"
+      className="flex w-full max-w-2xl flex-col gap-2 sm:flex-row sm:items-center"
     >
-      {chains.length > 1 && (
-        <select
-          value={chain}
-          onChange={(e) => setChain(e.target.value)}
-          aria-label="Chain"
-          className="h-11 shrink-0 cursor-pointer rounded-md border border-hairline-2 bg-panel px-2.5 font-mono text-[13px] text-ink outline-none transition-colors focus:border-accent/60"
-        >
-          <option value="">Auto</option>
-          {chains.map((c) => (
-            <option key={c.slug} value={c.slug}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-      )}
-      <input
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder="0x… transaction hash"
-        spellCheck={false}
-        autoFocus
-        className="h-11 min-w-0 flex-1 rounded-md border border-hairline-2 bg-panel px-3.5 font-mono text-[13px] text-ink placeholder:text-faint outline-none transition-colors focus:border-accent/60"
-      />
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        {chains.length > 1 && <ChainPicker chains={chains} value={chain} onChange={setChain} />}
+        {/* 16px on mobile: iOS zooms the page when focusing smaller inputs. */}
+        <input
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="0x… transaction hash"
+          aria-label="Transaction hash"
+          spellCheck={false}
+          autoCapitalize="off"
+          autoCorrect="off"
+          autoFocus
+          className="h-12 min-w-0 flex-1 rounded-md border border-hairline-2 bg-panel px-3.5 font-mono text-[16px] text-ink shadow-[0_0_0_1px_color-mix(in_srgb,var(--accent)_12%,transparent)] placeholder:text-faint outline-none transition-colors focus:border-accent/70 sm:h-11 sm:text-[13px] sm:shadow-none"
+        />
+      </div>
       <button
         type="submit"
         disabled={!valid || pending}
-        className="h-11 shrink-0 cursor-pointer rounded-md border border-accent/50 bg-accent/15 px-5 text-[13px] font-medium text-accent transition-colors hover:bg-accent/25 disabled:cursor-not-allowed disabled:opacity-40"
+        className="h-12 shrink-0 cursor-pointer rounded-md bg-accent px-5 text-[14px] font-semibold text-bg transition-[background-color,opacity] hover:bg-[color-mix(in_srgb,var(--accent)_85%,white)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-accent sm:h-11 sm:text-[13px]"
       >
         {pending ? "Tracing…" : "Inspect"}
       </button>
     </form>
+  );
+}
+
+/**
+ * Icon-only chain selector: the closed trigger shows just the chain mark;
+ * names appear once the listbox is open. Native `<select>` can't render
+ * icons in its options, hence the hand-rolled listbox.
+ */
+function ChainPicker({
+  chains,
+  value,
+  onChange,
+}: {
+  chains: ChainOption[];
+  value: string;
+  onChange: (slug: string) => void;
+}) {
+  const options: ChainOption[] = [
+    { slug: "", name: "Auto — search all chains", testnet: false },
+    ...chains,
+  ];
+  const selectedIndex = Math.max(
+    0,
+    options.findIndex((o) => o.slug === value),
+  );
+  const selected = options[selectedIndex];
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(selectedIndex);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    listRef.current?.focus();
+    const onPointerDown = (e: PointerEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [open]);
+
+  const choose = (i: number) => {
+    onChange(options[i].slug);
+    setOpen(false);
+    triggerRef.current?.focus();
+  };
+
+  return (
+    <div ref={rootRef} className="relative shrink-0">
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`Chain: ${selected.slug ? selected.name : "Auto"}`}
+        title={selected.name}
+        onClick={() => {
+          setActive(selectedIndex);
+          setOpen((o) => !o);
+        }}
+        className="flex h-12 cursor-pointer items-center gap-1.5 rounded-md border border-hairline-2 bg-panel pr-2 pl-3 outline-none transition-colors hover:border-hairline-2 hover:bg-panel-2 focus-visible:border-accent/60 sm:h-11"
+      >
+        <ChainIcon slug={selected.slug} testnet={selected.testnet} className="size-5" />
+        <svg
+          viewBox="0 0 12 12"
+          className={`size-3 text-faint transition-transform ${open ? "rotate-180" : ""}`}
+          aria-hidden
+        >
+          <path
+            d="m3 4.5 3 3 3-3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+      {open && (
+        <ul
+          ref={listRef}
+          role="listbox"
+          tabIndex={-1}
+          aria-label="Chain"
+          aria-activedescendant={`chain-opt-${active}`}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown") setActive((i) => (i + 1) % options.length);
+            else if (e.key === "ArrowUp")
+              setActive((i) => (i - 1 + options.length) % options.length);
+            else if (e.key === "Home") setActive(0);
+            else if (e.key === "End") setActive(options.length - 1);
+            else if (e.key === "Enter" || e.key === " ") choose(active);
+            else if (e.key === "Escape") {
+              setOpen(false);
+              triggerRef.current?.focus();
+            } else if (e.key === "Tab") setOpen(false);
+            else return;
+            if (e.key !== "Tab") e.preventDefault();
+          }}
+          className="absolute top-full left-0 z-30 mt-1.5 min-w-60 rounded-md border border-hairline-2 bg-panel p-1 shadow-xl shadow-black/40 outline-none"
+        >
+          {options.map((o, i) => (
+            <li
+              key={o.slug || "auto"}
+              id={`chain-opt-${i}`}
+              role="option"
+              aria-selected={i === selectedIndex}
+              onPointerEnter={() => setActive(i)}
+              onClick={() => choose(i)}
+              className={`flex cursor-pointer items-center gap-2.5 rounded px-2.5 py-2 text-[13px] ${
+                i === active ? "bg-panel-2 text-ink" : "text-dim"
+              }`}
+            >
+              <ChainIcon slug={o.slug} testnet={o.testnet} className="size-5" />
+              <span className="flex-1">{o.name}</span>
+              {o.testnet && <span className="font-mono text-[10.5px] text-warn/80">testnet</span>}
+              {i === selectedIndex && <span className="text-accent">✓</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
