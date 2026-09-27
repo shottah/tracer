@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { track } from "@/lib/analytics";
 import { ChainIcon } from "./chain-icon";
 
 const HASH_RE = /^0x[0-9a-fA-F]{64}$/;
@@ -26,6 +27,7 @@ export function HashForm({ chains }: { chains: ChainOption[] }) {
         e.preventDefault();
         if (!valid) return;
         setPending(true);
+        track({ name: "trace_submit", params: { chain: chain || "auto", source: "form" } });
         router.push(chain ? `/simulate/${chain}/${value.trim()}` : `/simulate/${value.trim()}`);
       }}
       className="flex w-full max-w-2xl flex-col gap-2 sm:flex-row sm:items-center"
@@ -96,6 +98,9 @@ function ChainPicker({
   }, [open]);
 
   const choose = (i: number) => {
+    if (options[i].slug !== value) {
+      track({ name: "chain_select", params: { chain: options[i].slug || "auto" } });
+    }
     onChange(options[i].slug);
     setOpen(false);
     triggerRef.current?.focus();
@@ -212,7 +217,10 @@ export function HashCrumb({ hash, chain }: { hash: string; chain?: string }) {
         if (!valid) return;
         setEditing(false);
         // A new hash may live on another chain: let the locator find it.
-        if (next.toLowerCase() !== hash.toLowerCase()) router.push(`/simulate/${next}`);
+        if (next.toLowerCase() !== hash.toLowerCase()) {
+          track({ name: "trace_submit", params: { chain: "auto", source: "crumb" } });
+          router.push(`/simulate/${next}`);
+        }
       }}
       className="flex min-w-0 items-center font-mono text-[12px] leading-[18px]"
     >

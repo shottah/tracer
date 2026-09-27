@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Panel, RpcNotConfigured, Shell } from "@/components/simulate-shell";
+import { TrackEvent } from "@/components/track-event";
 import { endpoints, locateTx, redactSecrets, type Endpoint } from "@/lib/endpoints";
 import { TX_HASH_RE } from "@/lib/tracer";
 
@@ -27,6 +28,9 @@ export default async function LocatePage({
   } catch (err) {
     return (
       <Shell hash={hash}>
+        <TrackEvent
+          event={{ name: "trace_error", params: { chain: "auto", error_kind: "rpc_unreachable" } }}
+        />
         <Panel tone="neg" title="RPC unreachable">
           <p className="font-mono text-[12.5px] break-all">
             {redactSecrets(String((err as Error).message ?? err))}
@@ -71,6 +75,9 @@ export default async function LocatePage({
   const searched = eps.filter((ep) => !failed.some((f) => f.chain.slug === ep.chain.slug));
   return (
     <Shell hash={hash}>
+      <TrackEvent
+        event={{ name: "trace_error", params: { chain: "auto", error_kind: "not_found" } }}
+      />
       <Panel tone={failed.length ? "warn" : "dim"} title="Transaction not found">
         {searched.length > 0 && (
           <p>

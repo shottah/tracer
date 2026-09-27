@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Chip } from "@/components/ui";
+import { track } from "@/lib/analytics";
 import { formatLossUsd } from "@/lib/attacks/format";
 import type { Attack, AttackPage } from "@/lib/attacks/types";
 import { chainBySlug } from "@/lib/chains";
@@ -79,6 +80,12 @@ function AttackCard({ attack: a }: { attack: Attack }) {
   return (
     <Link
       href={`/simulate/${a.chain}/${a.txHash}`}
+      onClick={() =>
+        track({
+          name: "feed_click",
+          params: { feed: "attack", chain: a.chain, protocol: a.protocol },
+        })
+      }
       className="group rounded-md border border-hairline bg-panel/80 px-3.5 py-3 transition-colors hover:border-accent/50"
     >
       <div className="flex items-baseline justify-between gap-3">

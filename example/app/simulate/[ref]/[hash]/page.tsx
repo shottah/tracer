@@ -3,9 +3,10 @@ import { notFound } from "next/navigation";
 import { InspectorTabs } from "@/components/inspector-tabs";
 import { RememberTx } from "@/components/remember-tx";
 import { Panel, RpcNotConfigured, Shell } from "@/components/simulate-shell";
+import { TrackEvent } from "@/components/track-event";
 import { TxHeader } from "@/components/tx-header";
 import { endpoints, redactSecrets, type Endpoint } from "@/lib/endpoints";
-import { displayName } from "@/lib/format";
+import { countFrames, displayName } from "@/lib/format";
 import { applyLabelOverrides, labelOverrides } from "@/lib/labels";
 import { TX_HASH_RE, deepDefault, runReport } from "@/lib/tracer";
 
@@ -30,6 +31,9 @@ export default async function SimulatePage({
   } catch (err) {
     return (
       <Shell hash={hash} chain={slug}>
+        <TrackEvent
+          event={{ name: "trace_error", params: { chain: slug, error_kind: "rpc_unreachable" } }}
+        />
         <Panel tone="neg" title="RPC unreachable">
           <p className="font-mono text-[12.5px] break-all">
             {redactSecrets(String((err as Error).message ?? err))}
@@ -44,6 +48,9 @@ export default async function SimulatePage({
   if (!endpoint) {
     return (
       <Shell hash={hash} chain={slug}>
+        <TrackEvent
+          event={{ name: "trace_error", params: { chain: slug, error_kind: "chain_unavailable" } }}
+        />
         <Panel tone="warn" title={`Chain "${slug}" is not available`}>
           <p>
             This server can trace on:{" "}
@@ -72,6 +79,15 @@ export default async function SimulatePage({
   if (!result.ok) {
     return (
       <Shell hash={hash} chain={slug}>
+        <TrackEvent
+          event={{
+            name: "trace_error",
+            params: {
+              chain: slug,
+              error_kind: result.kind === "notFound" ? "not_found" : "trace_failed",
+            },
+          }}
+        />
         <Panel
           tone={result.kind === "notFound" ? "dim" : "neg"}
           title={
@@ -120,6 +136,17 @@ export default async function SimulatePage({
           ok: tx.status,
           method,
           to: target && displayName(report, target),
+        }}
+      />
+      <TrackEvent
+        event={{
+          name: "trace_view",
+          params: {
+            chain: slug,
+            deep,
+            tx_status: tx.status ? "success" : "reverted",
+            calls: countFrames(report),
+          },
         }}
       />
       <TxHeader report={report} />

@@ -7,6 +7,17 @@ import type {
   TraceReport,
 } from "./types";
 
+/** Number of call frames in the trace tree (root included). */
+export function countFrames(report: TraceReport): number {
+  let n = 0;
+  const walk = (f: NonNullable<TraceReport["trace"]>) => {
+    n++;
+    for (const c of f.children ?? []) walk(c);
+  };
+  if (report.trace) walk(report.trace);
+  return n;
+}
+
 export function shortAddr(addr: string): string {
   if (addr.length <= 12) return addr;
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
